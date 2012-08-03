@@ -42,6 +42,7 @@ var mode, accompaniment, patterns, length, lengthTerz, nuAccompaniment, nuLength
 var mod5, mod4, nextChord;
 var themeRhythm, themePitch, themeChord, themeFlag, themeCounter, themeChordArray, themePitchArray, themeRhythmArray, themeLength, themeActive;
 var o1, o2, o3, o4, o5, o6, o7, range, varDissonance, lengthDissonance, boolDissonance, counterDissonance;
+var proxVeryHigh, proxHigh, proxMed, proxLow;
 
 var proximity, heart, skin, other, smooth, proxMod;
 var volRangeSolo, volRangeAcc;
@@ -112,7 +113,8 @@ quarti = 0; // quarti=0, funereo=1, triste=2, medio=3
 startingTone = ['A', 'B','C','C#','D','Eb','E','F','Gb','G','Ab'].choose.postln;
 range = 0; // pitch range e'8 o 0
 varDissonance = 0; // da 0 a 4
-themeLength = (rrand(0,1)+1)*4; // 4 o 8
+// themeLength = (rrand(0,1)+1)*4; // 4 o 8
+themeLength = 4;
 "Lunghezza tema: ".post;
 themeLength.postln;
 themeCounter = themeLength;
@@ -314,6 +316,10 @@ currentCounter=0;
 mod5=0;
 mod4=0;
 counterDissonance = 6;
+proxVeryHigh = 0.9;
+proxHigh = 0.6;
+proxMed = 0.4;
+proxLow = 0.2;
 
 ///////////////////// accompaniment fellow
 t = Task({
@@ -329,7 +335,7 @@ t = Task({
 
 //////////////////////// REAL TIME SELECTION
 		~tempo = 200*(skin+0.1);
-		if(proximity>0.7,{
+		if(proximity>proxHigh,{
 			mode = "Maj";
 			melodyDirection = true; // false -> basso
 			proxMod=3;
@@ -341,11 +347,11 @@ t = Task({
 			quarti = 2;
 		});
 		
-		if(proximity<0.2,{
+		if(proximity<proxLow,{
 			quarti = 0;
 		},{});
 		
-		if(proximity<0.4,{
+		if(proximity<proxMed,{
 			var tmp = proximity*(-20);
 			randomNote = 12+tmp; // va da 12 al peggio a 4
 		},{randomNote = 0});
@@ -428,7 +434,7 @@ t = Task({
 		soloLine.(1);
 		
 		// riseleziono il tema a caso
-		if ((proximity>0.5).and(themeFlag==themeLength).and(rrand(0,5)>2),{
+		if ((proximity>proxMed).and(themeFlag==themeLength).and(rrand(0,5)>2),{
 			// entro solo se il tema e'stato costruito
 			if ((themeCounter==themeLength).and(rrand(0,6)==0),{
 				"THEME SELECTED".postln;
@@ -436,7 +442,7 @@ t = Task({
 				},{});
 			},{});
 		
-		if((proximity>0.9).and(0==0),{
+		if((proximity>proxVeryHigh).and(0==0),{
 			if ((themeCounter>0).and(themeCounter<=themeLength).and(themeFlag>=themeLength),{
 				"THEME SELECTED".postln;
 				themeCounter = 0;
