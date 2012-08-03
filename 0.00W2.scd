@@ -1,0 +1,543 @@
+
+(
+// 	gradi di liberta':
+//		- mode
+//		- tempo
+//		- rhythm type
+//		- harmonic progression
+//		- pitch range 
+//		- annoying music
+
+
+// ToDo:
+
+
+//	- questo e'il tema
+//	- l'armonia deve avere dei punti di contatto (4+4) , chiusura melodica cmq dopo 4
+
+
+//	- due battute che si ripetono ogni tanto
+
+//	- la 4 battuta deve essere IV o V grado (per ora no)
+//	- V grado in battuta 7 e I grado in battuta 8
+//	- il tema dura 8 (8 diverse o 4+4) o 4, ultima accordo sulla tonica
+//	- intro evenutale di 2 o 4 battute (anche solo una mano), da farsi come oggetto
+//	- primo accordo: I, IV o V
+//	- metrica del pezzo
+//	- dopo il tema, moduliamo o meno, ogni tanto torna il tema, se torna e sono in tonica lo rifa uguale, se lo rifa e non sono in tonica, fa il tema trasposto
+//	- definire meglio il minore
+//	- aggiungere qualche accordo alterato
+//	- pitch fastidioso ok
+
+
+///////////////////// MODULAZIONI
+//	- per cromatismo o per accordo comune
+//	- V grado: 	a un certo punto quando capita l'accordo di I, V, VI, posso triggerare la modulazione al V grado e shifto
+//				il primo accordo sara'il V della nuova scala, poi il primo e poi via seguendo
+//				dopo 4, 6, 8 battute chiamo V-reverse = IV
+//	- IV grado:	ho gia'la sensibile, capita un primo grado, decido di andare al IV, shifto e vado al primo, cui segue quarto (.75) o secondo (.25) e via dicendo
+//				dopo 4, 6, 8 battute chiamo IV-reverse (o bis) = V
+//	- IV grado bis: capita il 2grado vecchio (VI nuovo), shifto in scala ma non restto il counter, vado sul quarto
+//	- IV, V grado poi si ritorna
+
+///////////////////// MODULAZIONE (min/maj)
+//	- I algorithm,	arrivo al IV-V grado e mi piazzo al I minore della stessa tonalita' (e viceversa) non e'di passaggio
+//	- II algorithm,	al relativo VI grado, stesse note ma inserisco una sensibile (3 grado del vecchio), 
+//					quando ci capita un secondo shifta, va al V del nuovo, si resetta il counter e va al primo del nuovo e il tema si rifara'subito cambiato di modo
+//					torniamo indietro quando capita il primo, si shifa e si va al secondo della nuova, che va al V, reset counter e si va al primo
+
+
+var soloLine, harmonicProgression, lengthAdjustment, quarti;
+var t2, delay, p1, a1, lengthPointer, aP, probabilityPattern, tmpPermute, pitchPattern, currentChord, actualLengthSet, lengthCounter, beatCounter, currentCounter, chordNotes, melodyDirection;
+var mode, accompaniment, patterns, length, lengthTerz, nuAccompaniment, nuLength, grades, gradesMaj, gradesHMin, harmony, harmonyHMin, harmonyMaj, startingLength, startingTone, currentTone;
+var mod5, mod4, modMode, nextChord;
+var themeRhythm, themePitch, themeChord, themeFlag;
+var o1, o2, o3, o4, o5, o6, o7, range, varDissonance, lengthDissonance, boolDissonance, counterDissonance;
+
+var proximity, heart, skin, other, smooth;
+var volRangeSolo, volRangeAcc;
+var randomNote, dissonanceControl; //variabili per proximity;
+
+
+MIDIClient.init(0,1,2); // initialize the MIDI client:
+m = MIDIOut(0, MIDIClient.destinations.at(0).uid); // create a MIDI out connection:
+m.connect(1);// and connect SC's first port to your device's port with for example QJackCtl
+
+
+/////////////////////  OSC connections
+o1 = OSCresponderNode(nil, "/processing", {
+	arg time, resp, msg, dissonance;
+	~tempo = ((msg[1]*3)+50);
+}).add;
+
+o2 = OSCresponderNode(nil, "/mic", {
+	arg time, resp, msg, dissonance;
+	boolDissonance = msg[1];
+}).add;
+
+o3 = OSCresponderNode(nil, "/prox", {
+	|t, r, mesg|
+	proximity = mesg[1];
+}).add;
+o4 = OSCresponderNode(nil, "/heart", {
+	|t, r, mesg|
+	heart = mesg[1];
+}).add;
+o5 = OSCresponderNode(nil, "/skin", {
+	|t, r, mesg|
+	skin = mesg[1];
+}).add;
+o6 = OSCresponderNode(nil, "/smooth", {
+	|t, r, mesg|
+	smooth = mesg[1];
+}).add;
+o7 = OSCresponderNode(nil, "/other", {
+	|t, r, mesg|
+	other = mesg[1];
+}).add;
+
+/////////////////////  getting values
+
+heart = 0.5;
+proximity = 1; // dissonanza, modo, ottava
+skin = 0.5;
+
+// fino a 0.7 maggiore
+// 0.4 - 0.7 minore
+// 0/0.1 - 0.1/0.2 - 0.2/0.4 dissonanze
+
+
+
+///////////////////// Mode | BPM
+mode = "HMin"; // Maj
+~tempo = 200*skin;
+melodyDirection = true; // false -> basso
+quarti = "quarti"; // funereo, triste, medio, quarti
+startingTone = ['A', 'B','C','C#','D','Eb','E'].choose.postln;
+range = 0; // pitch range e'8 o 0
+varDissonance = 0;	// da 0 a 4
+
+///////////////////// mapping grades to MIDI values
+~notes = ['B'	, 'C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+gradesMaj = [-1,0,2,4,5,7,9,11,12,14,16,17,19,21,23,24,26,28,29,31];
+gradesHMin = [-1,0,2,3,5,7,8,11,12,14,15,17,19,20,23,24,26,27,29,31];
+
+
+// probaility matrix of harmonic progression (from Piston W., Harmony, p.17)
+~accMatrix =  [[0, 0.05, 0.07, 0.35, 0.35, 0.08, 0.1],
+			[0.05, 0, 0.05, 0.05, 0.65, 0.20, 0],
+			[0, 0.07, 0, 0.21, 0.07, 0.65, 0],
+			[0.15, 0.15, 0.05, 0, 0.60, 0.05, 0],
+			[0.64, 0.05, 0.05, 0.13, 0, 0.13, 0],
+			[0.06, 0.35, 0.12, 0.12, 0.35, 0, 0],
+			[1, 0, 0, 0, 0, 0, 0]];
+
+
+harmonyMaj=[[1,3,5],[2,4,6],[3,5,7],[4,6,8],[5,7,9],[6,8,10],[7,9,11]];
+harmonyHMin=[[1,3,5],[2,4,6],[3,5,7],[4,6,8],[5,7,9],[6,8,10],[7,9,11]];
+
+case{mode == "HMin"}{harmony = harmonyHMin;grades = gradesHMin}
+	{mode == "Maj"}{harmony = harmonyMaj;grades = gradesMaj};
+
+
+///////////////////// patterns of length definition 
+//	0-3 sono potenziali inizi - OK
+//	0 va in liberta', piu'zeri ci sono piu'e facile che ci rimanga - SI
+//	4 va + probabilmente su se stessa e con = prob su 2 e 3, se compare piu'volte aumenta la probabilita'che rimanga li  - NO
+//	2, 3 vanno con la stessa prob uno sull'altro o sul 4 - OK
+//	ogni 4 si va al finale - OK
+//	5, 6 finali: 5 se si e'stati tanto in 1, 6 se si e'stati tanto negli altri - OK (circa)
+
+
+lengthCounter = [0,0,0,0,0,0,0];
+
+length = [
+		[[2, 1, 1], [2, 1, 0.5, 0.5], [2, 0.5, 1, 0.5], [2, 0.5, 0.5, 1], [2, 0.5, 0.5, 0.5, 0.5], [4], [3, 0.5, 0.5], [3, 1], [1,1,2]], // inzio in liberta'
+
+		[[1, 1, 1, 0.5, 0.5], [1, 1, 0.5, 1, 0.5], [1, 1, 0.5, 0.5, 1], [1, 1, 0.5, 0.5, 0.5, 0.5]], // primi due: quarti
+		[[0.5, 0.5, 0.5, 0.5, 1, 0.5, 0.5], [0.5, 0.5, 0.5, 0.5, 0.5, 1, 0.5], [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1], [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]], // primi due: ottavi		
+		[[1.5, 0.5, 1, 1], [1.5, 0.5, 1, 0.5, 0.5], [1.5, 0.5, 0.5, 1, 0.5], [1.5, 0.5, 0.5, 0.5, 1], [1.5, 0.5, 0.5, 0.5, 0.5, 0.5], [1.5, 0.5, 1.5, 0.5], [1.5, 0.5, 0.5, 1, 0.5]], // puntati 1.5-0.5 
+		[[0.5, 1, 0.5,1, 1], [0.5, 1, 0.5,1, 0.5, 0.5], [0.5, 1, 0.5,0.5, 1, 0.5], [0.5, 1, 0.5,0.5, 0.5, 1], [0.5, 1, 0.5,0.5, 0.5, 0.5, 0.5], [0.5, 1, 0.5,1.5, 0.5], [0.5, 1, 0.5,0.5, 1, 0.5], [1, 1, 0.5, 1, 0.5],[0.5, 0.5, 0.5, 0.5, 0.5, 1, 0.5]], // sincope
+					
+		[[4],[2,2],[1,1,2]], // finale a
+		[[1,0.5,0.5,2],[0.5,1,0.5,2],[0.5,0.5,0.5,0.5,2],[1,1,2]] // finale b
+		];
+
+lengthDissonance = [
+	[[2, 0.3, 0.7, 1], [1, 1.1, 1.9, 0.5, 0.5], [2,2], [0.2, 0.8, 0.8, 1, 0.2, 0.7, 0.3], [1,1,1,1], [1, 1, 0.5, 0.4, 1.1], [1.5, 0.7, 0.3, 0.5, 0.3, 0.7]],
+	[[0.8, 0.2, 0.3, 0.7, 0.6, 1.4], [4], [1, 0.8, 3, 0.2], [0.5, 1, 0.3, 1.7, 0.5], [0.5, 1.4, 0.6, 0.5, 0.7, 0.3], [0.6, 1.4, 0.8, 1.2], [0.5, 0.8, 0.7, 1.2, 0.5, 0.3]],
+	[[0.3, 0.4, 1.2, 0.6, 0.8, 0.7], [4], [0.3, 3.7], [2.8, 1.2], [0.8, 0.3, 2, 0.7, 0.2], [2,1,1], [0.3, 1.8, 0.3, 0.2, 0.7, 0.7], [0.4, 3.1, 0.5], [1,1,1.5,0.5], [0.2, 0.3, 0.8, 0.5, 0.7, 0.5, 0.2, 0.8]]
+	];
+	
+	
+// matrice dinamica, dove si definiscono le probabilita' per i 7 insiemi di pattern ritmici
+~lengthProbabilityMatrix = [
+						[1/5, 1/5, 1/5, 1/5, 1/5, 0, 0],
+						[1/5, 1/5, 1/5, 1/5, 1/5, 0, 0],
+						[0.04, 0.1, 0.33, 0.20, 0.33, 0, 0],
+						[0.05, 0.2, 0.2, 0.35, 0.2, 0, 0],
+						[0.05, 0.2, 0.2, 0.2, 0.35, 0, 0],
+						[0.5, 0.3, 0.1, 0.1, 0, 0, 0],
+						[0.05, 0.25, 0.35, 0.35, 0, 0, 0]
+						];
+actualLengthSet = rrand(0,3);
+lengthCounter[actualLengthSet] = lengthCounter[actualLengthSet] + 1;
+startingLength = length[actualLengthSet].choose;
+beatCounter=0;
+themeFlag=0;
+randomNote=0;
+
+
+
+///////////////////// function definition for soloLine
+soloLine = { |x|
+	
+	//	scelta del pattern ritmico
+	case{beatCounter == 1}{nuLength=startingLength;}
+		{beatCounter%4==0}{
+			//	5, 6 finali: 5 se si e'stati tanto in 1, 6 se si e'stati tanto negli altri
+			var tmp = [0,0,0,0,0,lengthCounter[1],(lengthCounter[2]+lengthCounter[3]+lengthCounter[4])/2];
+			actualLengthSet = tmp.maxIndex;
+			nuLength = length[actualLengthSet].choose;
+			}
+		{(beatCounter!=1).and(beatCounter%4!=0)}{
+			actualLengthSet = [0,1,2,3,4,5,6].wchoose(~lengthProbabilityMatrix[actualLengthSet]);
+			nuLength = length.wchoose(~lengthProbabilityMatrix[actualLengthSet]).choose;
+					};
+		
+		if(rrand(4,12) <= randomNote,{
+			var tmp = floor(randomNote/3.1)-1; // 0, 1 o 2
+			
+			chordNotes[0] = (1 + rrand(1,(randomNote-1)))%12;
+			chordNotes[0] = (3 + rrand(1,(randomNote-1)))%12;
+			chordNotes[0] = (5 + rrand(1,(randomNote-1)))%12;
+			nuLength =  lengthDissonance[tmp].choose;
+			},{}
+		);				
+	
+	//chordNotes.postln;
+	//nuLength.postln;		
+
+
+	//	scelta delle note, pitch numera da 0 a 14
+	pitchPattern = [];	
+	for (0, (nuLength.size-1), {arg i;pitchPattern= pitchPattern ++ '***';});
+	pitchPattern[rrand(0,nuLength.size-1)] = [chordNotes[rrand(0,2)], range+chordNotes[rrand(0,2)]].choose; // a caso in mezzo metto una nota dell'accordo
+
+	pitchPattern[0]=chordNotes[rrand(0,2)];  //primo della battuta: uno dei gradi dell'accordo
+	pitchPattern[nuLength.size-1]=chordNotes[rrand(0,2)];  //ultimo della battuta: uno dei gradi dell'accordo
+	pitchPattern[nuLength.maxIndex] = chordNotes[0];
+	
+	
+
+	if(nuLength.size>1,{
+		for (2, nuLength.size-1,{
+			arg i;
+			if(nuLength[i-1]!=0.5,{	pitchPattern[i-1] = chordNotes[rrand(0,2)];},{});
+			if(pitchPattern[i-1]=='***',{
+				if(melodyDirection,{
+					if(pitchPattern[i-2]>19,{pitchPattern[i-1] = pitchPattern[i-2]-1},{pitchPattern[i-1] = pitchPattern[i-2]+1});
+					},{
+					if(pitchPattern[i-2]>0,{pitchPattern[i-1] = pitchPattern[i-2]-1},{pitchPattern[i-1] = pitchPattern[i-2]+1});
+				})},
+			{});
+			if(pitchPattern[i-1]>19,{pitchPattern=chordNotes[rrand(0,2)];},{});
+			//pitchPattern.postln;
+		});},{});
+		
+		
+	if(varDissonance>0,{	
+		if(lengthDissonance.size>1,{
+			for (2, lengthDissonance.size-1,{
+				arg i;
+				if(lengthDissonance[i-1]!=0.5,{ pitchPattern[i-1] = chordNotes[rrand(0,2)]+1;},{});
+					if(pitchPattern[i-1]=='***',{
+						if(melodyDirection,{
+							if(pitchPattern[i-2]>19,{pitchPattern[i-1] = pitchPattern[i-2]-(rrand(0,4))},{pitchPattern[i-1] = pitchPattern[i-2] + (rrand(1,5))});
+						},{
+					if(pitchPattern[i-2]>0,{pitchPattern[i-1] = pitchPattern[i-2]-(rrand(0,7))},{pitchPattern[i-1] = pitchPattern[i-2]+(rrand(1,7))});
+					})},
+				{});
+			if(pitchPattern[i-1]>19,{pitchPattern=chordNotes[rrand(0,2)]+1;},{});
+			//pitchPattern.postln;
+		});},{});	
+	},{});	
+		
+	
+		//	seleziona tema
+	if(themeFlag==0,{
+		themeFlag=1;
+		themePitch = pitchPattern;
+		themeRhythm = nuLength;
+		themeChord = chordNotes;
+//		"  Theme pitch:".post; themePitch.post;
+//		"  Theme rhythm:".post; themeRhythm.post;
+		},{});
+	
+	
+	//"  Solo line:".post; grades[pitchPattern]%12.post;
+	//~notes[(grades[pitchPattern]%12)+1].post;
+	"  Durata:".post; nuLength.post;
+//	"  Length counter:".post; lengthCounter.postln;
+	
+	lengthAdjustment.(1);
+
+};
+
+lengthAdjustment = { |x|
+	if((actualLengthSet==0).and(lengthCounter[0]/beatCounter > 0.2),{
+		~lengthProbabilityMatrix[0][0] = ~lengthProbabilityMatrix[0][0]+0.04;
+		~lengthProbabilityMatrix[0][1] = ~lengthProbabilityMatrix[0][1]-0.01;
+		~lengthProbabilityMatrix[0][2] = ~lengthProbabilityMatrix[0][2]-0.01;
+		~lengthProbabilityMatrix[0][3] = ~lengthProbabilityMatrix[0][3]-0.01;
+		~lengthProbabilityMatrix[0][4] = ~lengthProbabilityMatrix[0][4]-0.01;
+		~lengthProbabilityMatrix[0].postln;
+		},{});
+};
+
+
+///////////////////// function definition for harmonicProgression
+harmonicProgression = { |x|
+	var current;
+	1.do{|i|
+		var condition;
+		current = ~accMatrix[x].windex;
+		currentChord = current;
+	};
+	nuAccompaniment = current;
+};
+
+
+///////////////////// setting variables
+currentChord = [0,3,4].choose;
+nuAccompaniment = harmony[currentChord];
+chordNotes = nuAccompaniment;
+~actualTones = harmony[currentChord];
+a1 = Pseq(nuAccompaniment, inf).asStream; // accompaniment
+currentTone = ~notes.indexOf(startingTone);
+//~notes = ~notes.rotate(currentTone*(-1)+1).postln;
+nextChord = nil;
+currentCounter=0;
+mod5=0;
+mod4=0;
+modMode=0;
+counterDissonance = 6;
+
+
+///////////////////// accompaniment fellow
+t = Task({
+	loop({
+		var a1value;
+		beatCounter = beatCounter + 1;
+		currentCounter=currentCounter+1;
+//		"".postln;
+//		"".postln;
+//		"N ".post; beatCounter.postln;
+		a1value = a1.value;
+		if (beatCounter == 1, {currentChord = [0,3,4].choose;},{});
+		if (beatCounter%8 == 0, {currentChord = 0},{});
+		if (beatCounter%8 == 7, {currentChord = 4},{});
+		
+
+//////////////////////// REAL TIME SELECTION
+		~tempo = 200*(skin+0.1);
+		if(proximity>0.7,{
+			mode = "Maj";
+			melodyDirection = true; // false -> basso
+			},{
+			mode = "HMin";
+			melodyDirection = false; // false -> basso
+		});
+		if(proximity<0.4,{
+			var tmp = proximity*(-20);
+			randomNote = 12+tmp; // va da 12 al peggio a 4
+		},{randomNote = 0});
+		
+		// con una certa probabilita' ogni volta che peschi una nota la metti a caso: random(3,12)<=randomNote la metti a caso 
+		
+		case{mode == "HMin"}{harmony = harmonyHMin;grades = gradesHMin}
+		{mode == "Maj"}{harmony = harmonyMaj;grades = gradesMaj};
+		
+		volRangeSolo = heart;
+		volRangeAcc = heart;
+
+	/// gestione modulazione
+
+		if((currentCounter>7).and((currentChord == 0).or(currentChord == 4).or(currentChord == 5).and(mod5==0).and(rrand(1,10)>7)),{
+			var prob;
+			prob = [4,5].wchoose([0.5,0.5]);	// con uguale probabilita' modula in quarta o in quinta
+			case{prob==5}{
+					currentTone = currentTone+4; // vado al quinto grado
+//					~notes = ~notes.rotate(currentTone*(-1)+1).postln;
+					currentChord = 4;
+					mod5 = 1;
+					"modulazione di quinta".postln;
+					currentCounter=0;
+				}{prob==4}{
+					if(currentChord==0,{
+						"modulazione di quarta".postln;
+						mod4 = 1;
+						currentChord = 0;
+						currentTone = currentTone+3;
+						currentCounter = 0;
+					},{});
+			}
+		},{});
+			
+		case{mod5==1}{mod5 = 2;	currentChord = 0;}
+			{mod5>1}{mod5 = mod5+1;};
+			
+		case{mod4==1}{mod4 = 2;	currentChord = [1,3].wchoose([0.25,0.75])}
+			{mod4>1}{mod4 = mod4+1;};
+			
+		if((mod5>6).and(currentChord==0),{	// condizione di terminazione della modulazione di quinta
+				mod5 = 0;
+				currentTone = currentTone-4;
+//			 	~notes = ~notes.rotate(currentTone+1).postln;
+				"modulazione di quinta terminata".postln;
+				nextChord=[0,3];
+				currentCounter=0;
+			},{});	
+		case{nextChord==[0,3]}{currentChord = 0; nextChord=3;}
+			{nextChord==3}{currentChord = [1,3].wchoose([0.25,0.75]); nextChord=nil;};
+		
+		if((mod4>6).and(currentChord==0),{	// condizione di terminazione della modulazione di quinta
+				mod4 = 0;
+				currentTone = currentTone-3;
+//			 	~notes = ~notes.rotate(currentTone+1).postln;
+				"modulazione di quarta terminata".postln;
+				nextChord=[4,0];
+				currentCounter=0;
+			},{});	
+		case{nextChord==[4,0]}{currentChord = 4; nextChord=0;}
+			{nextChord==0}{currentChord = 0; nextChord=nil;};	
+		chordNotes = harmony[currentChord];
+		
+		"Degree:".post; (currentChord+1).post;
+		"  Chord:".post; ~notes[(grades[chordNotes]+1)%12].post;
+		~actualTones = chordNotes;
+		
+		
+		soloLine.(1);
+		
+		
+		// riseleziono il tema a caso
+		if (rrand(0,3)==0,{
+			"ripeto il tema".postln;
+			pitchPattern = themePitch;
+			chordNotes = themeChord;
+			nuLength = themeRhythm;	
+			},{});
+	
+		
+		p1 = Pseq(pitchPattern, inf).asStream;
+		q = Pseq(nuLength, inf).asStream;
+		// actual pitch to be played (pretend we are in Maj Scale):
+		// 60 is the central C, we just take the grades of the chosen pattern in the mapped mode
+		
+		
+		case{quarti=="funereo"}{
+				1.do{
+					m.noteOn(0, 36+chordNotes[0], 120*volRangeAcc);
+					(3*(60/~tempo)).wait;
+	
+				2.do{ |i|
+					m.noteOn(16, 48+chordNotes[i], 80*volRangeAcc);
+					(4*(60/(8*~tempo))).wait;
+					m.noteOff(16, 48+chordNotes[i], 80*volRangeAcc);
+				};
+	
+				m.noteOff(0, 36+chordNotes[0], 120*volRangeAcc);
+				}
+			}
+			{quarti=="triste"}{
+				m.noteOn(0, 36+chordNotes[0], 120*volRangeAcc);
+				(2*(60/~tempo)).wait;
+				
+				2.do{ |i|
+				m.noteOn(16, 48+chordNotes[i], 80*volRangeAcc);
+				(4*(60/(8*~tempo))).wait;
+				m.noteOff(16, 48+chordNotes[i], 80*volRangeAcc);
+				};
+				2.do{ |i|
+				m.noteOn(16, 48+chordNotes[i], 80*volRangeAcc);
+				(4*(60/(8*~tempo))).wait;
+				m.noteOff(16, 48+chordNotes[i], 80*volRangeAcc);
+				};
+				
+				m.noteOff(0, 36+chordNotes[0], 120*volRangeAcc);
+			}
+			{quarti=="quarti"}{
+				m.noteOn(0, 47+currentTone+grades[chordNotes[0]], 120*volRangeAcc); m.noteOn(16, (47+currentTone+grades[chordNotes[1]]), 100*volRangeAcc);  m.noteOn(16, (47+currentTone+grades[chordNotes[2]]), 100*volRangeAcc);
+				(4*(60/~tempo)).wait;
+				m.noteOff(0, 47+currentTone+grades[chordNotes[0]], 120*volRangeAcc); m.noteOff(16, (47+currentTone+grades[chordNotes[1]]), 100*volRangeAcc); m.noteOff(16, (47+currentTone+grades[chordNotes[2]]), 100*volRangeAcc);
+			}
+			{quarti=="medio"}{
+				m.noteOn(0, 36+chordNotes[0], 120*volRangeAcc);
+				2.do{ |i|
+				m.noteOn(16, 48+chordNotes[i], 80*volRangeAcc);
+				(4*(60/(8*~tempo))).wait;
+				m.noteOff(16, 48+chordNotes[i], 80*volRangeAcc);
+				};
+				2.do{ |i|
+				m.noteOn(16, 48+chordNotes[i], 80*volRangeAcc);
+				(4*(60/(8*~tempo))).wait;
+				m.noteOff(16, 48+chordNotes[i], 80*volRangeAcc);
+				};
+				2.do{ |i|
+				m.noteOn(16, 48+chordNotes[i], 80*volRangeAcc);
+				(4*(60/(8*~tempo))).wait;
+				m.noteOff(16, 48+chordNotes[i], 80*volRangeAcc);
+				};
+				2.do{ |i|
+				m.noteOn(16, 48+chordNotes[i], 80*volRangeAcc);
+				(4*(60/(8*~tempo))).wait;
+				m.noteOff(16, 48+chordNotes[i], 80*volRangeAcc);
+				};
+				
+				m.noteOff(0, 36+chordNotes[0], 120*volRangeAcc);
+			};
+
+		harmonicProgression.(currentChord);
+		lengthCounter[actualLengthSet] = lengthCounter[actualLengthSet] + 1;
+	});
+	
+});
+
+
+///////////////////// solo fellow
+t2 = Task({
+	loop({arg tmpVel;
+		var tmpPitch = p1.value;
+		var tmpLength =  (60/~tempo)*q.value; // controllo sui BPM
+
+		// actual pitch to be played (pretend we are in Maj Scale):
+		// 60 is the central C, we just take the grades of the chosen pattern in the mapped mode
+		// 60 is the central C, we just take the grades of the chosen pattern in the mapped mode
+		"grado ".post; tmpPitch.postln;
+		aP = 59+currentTone+grades[tmpPitch];
+		
+		if(rrand(4,12) <= randomNote,{
+			aP = aP + rrand(-1*randomNote,1*randomNote)},{}
+		);
+	
+//		~notes[(grades[tmpPitch]+1)%12].post;" ".post; (currentc
+		tmpVel = rrand(90,120)*volRangeSolo;
+		delay = exprand(0.0001,0.02)-0.001;
+		delay.wait;
+		m.noteOn(1, aP, tmpVel);
+		//m.noteOn(2, aP, tmpVel);
+		(tmpLength-delay).wait;
+		m.noteOff(1, aP, tmpVel);
+		//m.noteOff(2, aP, tmpVel);
+	});
+});
+
+
+soloLine.(1);
+p1 = Pseq(pitchPattern, inf).asStream;
+q = Pseq(nuLength, inf).asStream;
+
+t.start;
+t2.start;
+)
