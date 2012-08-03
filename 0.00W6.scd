@@ -2,8 +2,10 @@
 (
 
 ///////////////////// TO DO
-//	- fade in all'inizio
-//	- non deve modulare in mezzo al tema oppure mettiamo i gradi nell'array del tema
+//	- fade in all'inizio (fabio)
+//	- non deve modulare in mezzo al tema oppure mettiamo i gradi nell'array del tema (fabio)
+//	- gestione modulazione su proxVeryHigh (raul)
+//	- variazione degli accompagnamenti (raul)
 
 //	- questo e'il tema
 //	- l'armonia deve avere dei punti di contatto (4+4) , chiusura melodica cmq dopo 4
@@ -92,7 +94,7 @@ o7 = OSCresponderNode(nil, "/other", {
 
 /////////////////////  getting values
 
-heart = 0.5;		// tace finche'non entrano i soggetti 
+heart = 0;		// tace finche'non entrano i soggetti 
 proximity = 0.8;	// dissonanza, modo, ottava
 skin = 0.5;
 
@@ -261,7 +263,7 @@ soloLine = { |x|
 		themeChordArray = themeChordArray.add(chordNotes);
 		"costruendo il tema, battuta numero ".post;
 		themeFlag.postln;
-		quarti = 0;
+		quarti = 2;
 		case{themeFlag-1 == 3}{quarti = rrand(1,3);}
 		    {themeFlag-1 == 6}{quarti = 3};
 		},{});
@@ -316,9 +318,9 @@ currentCounter=0;
 mod5=0;
 mod4=0;
 counterDissonance = 6;
-proxVeryHigh = 0.9;
-proxHigh = 0.6;
-proxMed = 0.4;
+proxVeryHigh = 0.7;
+proxHigh = 0.5;
+proxMed = 0.3;
 proxLow = 0.2;
 
 ///////////////////// accompaniment fellow
@@ -367,7 +369,7 @@ t = Task({
 
 	/// gestione modulazione
 
-		if((currentCounter>7).and(mod5==0).and(mod4==0).and(rrand(1,10)>1).and((currentChord == 0).or(currentChord == 5)),{
+		if((currentCounter>7).and(mod5==0).and(mod4==0).and(rrand(1,10)>proxMod).and((currentChord == 0).or(currentChord == 5)),{
 			var prob;
 			prob = [4,5].wchoose([0.5,0.5]);	// con uguale probabilita' modula in quarta o in quinta
 			case{prob==5}{
@@ -434,23 +436,23 @@ t = Task({
 		soloLine.(1);
 		
 		// riseleziono il tema a caso
-		if ((proximity>proxMed).and(themeFlag==themeLength).and(rrand(0,5)>2),{
+		if ((proximity>proxMed).and(themeFlag==themeLength).and(rrand(0,6)>4),{
 			// entro solo se il tema e'stato costruito
-			if ((themeCounter==themeLength).and(rrand(0,6)==0),{
+			if (themeCounter==themeLength,{
 				"THEME SELECTED".postln;
 				themeCounter = 0;
 				},{});
 			},{});
 		
-		if((proximity>proxVeryHigh).and(0==0),{
-			if ((themeCounter>0).and(themeCounter<=themeLength).and(themeFlag>=themeLength),{
+		if((proximity>proxVeryHigh).and(themeFlag==themeLength),{
+			if (themeCounter==themeLength,{
 				"THEME SELECTED".postln;
 				themeCounter = 0;
 				},{});
 		},{});
 	
 		if ((themeCounter<themeLength),{
-			"Theme measure number ".post;
+			"Theme bar number ".post;
 			(themeCounter+1).postln;
 			pitchPattern = themePitchArray[themeCounter];
 			chordNotes = themeChordArray[themeCounter];
