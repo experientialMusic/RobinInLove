@@ -50,7 +50,6 @@ var proximity, heart, skin, other, smooth, proxMod;
 var volRangeSolo, volRangeAcc;
 var randomNote, dissonanceControl; //variabili per proximity;
 
-
 MIDIClient.init(0,1,2); // initialize the MIDI client:	
 m = MIDIOut(0, MIDIClient.destinations.at(0).uid); // create a MIDI out connection:
 m.connect(1);// and connect SC's first port to your device's port with for example QJackCtl
@@ -480,6 +479,7 @@ t = Task({
 				(4*(60/~tempo)).wait;
 				m.noteOff(0, 47+currentTone+grades[chordNotes[0]], 120*volRangeAcc); m.noteOff(16, (47+currentTone+grades[chordNotes[1]]), 100*volRangeAcc); m.noteOff(16, (47+currentTone+grades[chordNotes[2]]), 100*volRangeAcc);
 			}
+
 			
 			{quarti==1}{
 				m.noteOn(0, 35+currentTone+grades[chordNotes[0]], 120*volRangeAcc);
@@ -522,11 +522,19 @@ t = Task({
 					(4*(60/(8*~tempo))).wait;
 					m.noteOff(16, 47+currentTone+grades[chordNotes[i]], 80*volRangeAcc);
 				};
-				2.do{ |i|
-					m.noteOn(16, 47+currentTone+grades[chordNotes[i]+1], 80*volRangeAcc);
-					(4*(60/(8*~tempo))).wait;
-					m.noteOff(16, 47+currentTone+grades[chordNotes[i]], 80*volRangeAcc);
-				};
+				if ((rrand(0,1) > 0).and(0 == 0),{
+					2.do{ |i|
+						m.noteOn(16, 47+currentTone+grades[chordNotes[i]+1], 80*volRangeAcc);
+						(4*(60/(8*~tempo))).wait;
+						m.noteOff(16, 47+currentTone+grades[chordNotes[i]+1], 80*volRangeAcc);
+					};
+				},{
+					2.do{ |i|
+						m.noteOn(16, 47+currentTone+grades[chordNotes[i]], 80*volRangeAcc);
+						(4*(60/(8*~tempo))).wait;
+						m.noteOff(16, 47+currentTone+grades[chordNotes[i]], 80*volRangeAcc);
+					};
+				});
 				2.do{ |i|
 					m.noteOn(16, 47+currentTone+grades[chordNotes[i]], 80*volRangeAcc);
 					(4*(60/(8*~tempo))).wait;
