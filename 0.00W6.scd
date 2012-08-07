@@ -456,7 +456,7 @@ t = Task({
 			pitchPattern = themePitchArray[themeCounter];
 			chordNotes = themeChordArray[themeCounter];
 			nuLength = themeRhythmArray[themeCounter];
-			quarti = 2;
+			quarti = 0;
 			case{themeCounter == 3}{quarti = rrand(1,3);}
 			    {themeCounter == 6}{quarti = 3}
 			    {themeCounter == 7}{quarti = rrand(1,3);};
