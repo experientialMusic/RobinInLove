@@ -253,6 +253,7 @@ soloLine = { |x|
 		themeRhythmArray = themeRhythmArray.add(rhythmPattern);
 		themeChordArray = themeChordArray.add(chordNotes);
 		"costruendo il tema, battuta numero ".post;
+		themeActive=true;
 		themeFlag.postln;
 		leftHand = 2;
 		case{themeFlag-1 == 3}{leftHand = rrand(1,3);}
@@ -317,6 +318,7 @@ accompanimentTask = Task({
 	loop({
 		beatCounter = beatCounter + 1;
 		barsPreModCounter=barsPreModCounter+1;
+		themeActive=false;
 		if (beatCounter == 1, {currentChordDegree = [0,3,4].choose;},{});
 		if (beatCounter%8 == 0, {currentChordDegree = 0},{});
 		if (beatCounter%8 == 7, {currentChordDegree = 4},{});
@@ -425,6 +427,7 @@ accompanimentTask = Task({
 			if (themeCounter==themeRhythm,{
 				"THEME SELECTED".postln;
 				themeCounter = 0;
+				themeActive=true;
 				},{});
 			},{});
 		
@@ -436,6 +439,7 @@ accompanimentTask = Task({
 		},{});
 	
 		if ((themeCounter<themeRhythm),{
+			themeActive=true;
 			"Theme bar number ".post;
 			(themeCounter+1).postln;
 			melodyPattern = themeMelodyArray[themeCounter];
@@ -538,22 +542,27 @@ melodyTask = Task({
 	loop({arg tmpVel;
 		var tmpPitch = melodyStream.value;
 		var tmpLength =  (60/~tempo)*rhythmStream.value; // controllo sui BPM
-
+		var voiceTranspose;
 		// actual pitch to be played (pretend we are in Maj Scale):
 		// 60 is the central C, we just take the degree of the chosen pattern in the mapped mode
 		absolutePitch = 59+relativeKeyN+degree[tmpPitch];
+		voiceTranspose = 59+relativeKeyN+degree[tmpPitch+2]; // la seconda voce, leggermente sfasata, va sopra di un intervallo di seconda nei temi
+		
 		
 		if(rrand(4,12) <= randomNote,{
 			absolutePitch = absolutePitch + rrand(-1*randomNote,1*randomNote)},{}
 		);
 	
 		tmpVel = rrand(90,120)*volRangeSolo;
-		delay = rrand(0,0.04)-0.02;
-		delay.wait;
+		delay = 0.05;
 		m.noteOn(1, absolutePitch, tmpVel);
+		delay.wait;
+		if(themeActive,{m.noteOn(0, voiceTranspose, tmpVel)},{m.noteOn(0, absolutePitch, tmpVel)});
 		//m.noteOn(2, absolutePitch, tmpVel);
 		(tmpLength-delay).wait;
 		m.noteOff(1, absolutePitch, tmpVel);
+		//0.01.wait;
+		if(themeActive,{m.noteOff(0, voiceTranspose, tmpVel)},{m.noteOff(0, absolutePitch, tmpVel)});
 		//m.noteOff(2, absolutePitch, tmpVel);
 	});
 });
