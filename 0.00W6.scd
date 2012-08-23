@@ -95,7 +95,7 @@ o7 = OSCresponderNode(nil, "/other", {
 
 /////////////////////  getting values
 
-heart = 0;		// tace finche'non entrano i soggetti 
+heart = 0.5;		// tace finche'non entrano i soggetti 
 proximity = 0.5;	// dissonanza, modo, ottava
 skin = 0.5;
 
@@ -466,21 +466,17 @@ accompanimentTask = Task({
 		"Degree:".post; (currentChord+1).post;
 		"  Chord:".post; ~notes[(grades[chordNotes]+currentTone)%12].post;
 		"  Length:".post; rhythmPattern.post;
-
-		
 		pitchStream = Pseq(pitchPattern, inf).asStream;
 		rhythmStream = Pseq(rhythmPattern, inf).asStream;
 		// actual pitch to be played (pretend we are in Maj Scale):
 		// 60 is the central C, we just take the grades of the chosen pattern in the mapped mode
-		
-		
 		case{quarti==0}{
 				m.noteOn(0, 47+currentTone+grades[chordNotes[0]], 120*volRangeAcc); m.noteOn(16, (47+currentTone+grades[chordNotes[1]]), 100*volRangeAcc);  m.noteOn(16, (47+currentTone+grades[chordNotes[2]]), 100*volRangeAcc);
 				(4*(60/~tempo)).wait;
 				m.noteOff(0, 47+currentTone+grades[chordNotes[0]], 120*volRangeAcc); m.noteOff(16, (47+currentTone+grades[chordNotes[1]]), 100*volRangeAcc); m.noteOff(16, (47+currentTone+grades[chordNotes[2]]), 100*volRangeAcc);
+				
 			}
 
-			
 			{quarti==1}{
 				m.noteOn(0, 35+currentTone+grades[chordNotes[0]], 120*volRangeAcc);
 				(3*(60/~tempo)).wait;
@@ -547,6 +543,7 @@ accompanimentTask = Task({
 		harmonicProgression.(currentChord);
 		rhythmSetCounter[currentRhythmSet] = rhythmSetCounter[currentRhythmSet] + 1;
 		"".postln;
+
 	});
 });
 
@@ -555,7 +552,7 @@ accompanimentTask = Task({
 melody1Task = Task({
 	loop({arg tmpVel;
 		var tmpPitch = pitchStream.value;
-		var tmpLength =  (60/~tempo)*q.value; // controllo sui BPM
+		var tmpLength =  (60/~tempo)*rhythmStream.value; // controllo sui BPM
 
 		// actual pitch to be played (pretend we are in Maj Scale):
 		// 60 is the central C, we just take the grades of the chosen pattern in the mapped mode

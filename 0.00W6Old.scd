@@ -93,7 +93,7 @@ o7 = OSCresponderNode(nil, "/other", {
 
 /////////////////////  getting values
 
-heart = 0;		// tace finche'non entrano i soggetti 
+heart = 0.5;		// tace finche'non entrano i soggetti 
 proximity = 0.5;	// dissonanza, modo, ottava
 skin = 0.5;
 
