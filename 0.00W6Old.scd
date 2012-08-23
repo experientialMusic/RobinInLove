@@ -37,16 +37,14 @@
 //					quando ci capita un secondo shifta, va al V del nuovo, si resetta il counter e va al primo del nuovo e il tema si rifara'subito cambiato di modo
 //					torniamo indietro quando capita il primo, si shifa e si va al secondo della nuova, che va al V, reset counter e si va al primo
 
-var accompanimentTask, melody1Task, melody2Task;
-var pitchStream, rhythmStream, accompanimentStream;
-var pitchPattern, rhythmPattern, currentChord, currentRhythmSet;
-var rhythmSetCounter, beatCounter, currentCounter, chordNotes, melodyDirection;
-var mode, accompaniment, patterns, length, lengthTerz, nuAccompaniment, grades, gradesMaj, gradesHMin, harmony, harmonyHMin, harmonyMaj, startingLength, startingTone, currentTone;
+
+var soloLine, harmonicProgression, lengthAdjustment, quarti;
+var t2, delay, p1, a1, lengthPointer, aP, probabilityPattern, tmpPermute, pitchPattern, currentChord, actualLengthSet, lengthCounter, beatCounter, currentCounter, chordNotes, melodyDirection;
+var mode, accompaniment, patterns, length, lengthTerz, nuAccompaniment, nuLength, grades, gradesMaj, gradesHMin, harmony, harmonyHMin, harmonyMaj, startingLength, startingTone, currentTone;
 var mod5, mod4, nextChord;
 var themeRhythm, themePitch, themeChord, themeFlag, themeCounter, themeChordArray, themePitchArray, themeRhythmArray, themeLength, themeActive;
 var o1, o2, o3, o4, o5, o6, o7, range, varDissonance, lengthDissonance, boolDissonance, counterDissonance;
 var proxVeryHigh, proxHigh, proxMed, proxLow;
-var soloLine, harmonicProgression, lengthAdjustment, quarti,delay, absolutePitch;
 
 var proximity, heart, skin, other, smooth, proxMod;
 var volRangeSolo, volRangeAcc;
@@ -155,7 +153,7 @@ case{mode == "HMin"}{harmony = harmonyHMin;grades = gradesHMin}
 //	5, 6 finali: 5 se si e'stati tanto in 1, 6 se si e'stati tanto negli altri - OK (circa)
 
 
-rhythmSetCounter = [0,0,0,0,0,0,0];	// conteggio quante volte abbiamo pescato dai vari insiemi di lunghezze
+lengthCounter = [0,0,0,0,0,0,0];
 
 length = [
 		[[2, 1, 1], [2, 1, 0.5, 0.5], [2, 0.5, 1, 0.5], [2, 0.5, 0.5, 1], [2, 0.5, 0.5, 0.5, 0.5], [4], [3, 0.5, 0.5], [3, 1], [1,1,2]], // inzio in liberta'
@@ -191,16 +189,16 @@ lengthDissonance = [
 soloLine = { |x|
 	
 	//	scelta del pattern ritmico
-	case{beatCounter == 1}{rhythmPattern=startingLength;}
+	case{beatCounter == 1}{nuLength=startingLength;}
 		{beatCounter%4==0}{
 			//	5, 6 finali: 5 se si e'stati tanto in 1, 6 se si e'stati tanto negli altri
-			var tmp = [0,0,0,0,0,rhythmSetCounter[1],(rhythmSetCounter[2]+rhythmSetCounter[3]+rhythmSetCounter[4])/3];
-			currentRhythmSet = tmp.maxIndex;
-			rhythmPattern = length[currentRhythmSet].choose;
+			var tmp = [0,0,0,0,0,lengthCounter[1],(lengthCounter[2]+lengthCounter[3]+lengthCounter[4])/2];
+			actualLengthSet = tmp.maxIndex;
+			nuLength = length[actualLengthSet].choose;
 			}
 		{(beatCounter!=1).and(beatCounter%4!=0)}{
-			currentRhythmSet = [0,1,2,3,4,5,6].wchoose(~lengthProbabilityMatrix[currentRhythmSet]);
-			rhythmPattern = length.wchoose(~lengthProbabilityMatrix[currentRhythmSet]).choose;
+			actualLengthSet = [0,1,2,3,4,5,6].wchoose(~lengthProbabilityMatrix[actualLengthSet]);
+			nuLength = length.wchoose(~lengthProbabilityMatrix[actualLengthSet]).choose;
 					};		
 
 	// dissono un po'	
@@ -209,23 +207,23 @@ soloLine = { |x|
 		chordNotes[0] = (1 + rrand(1,(randomNote-1)))%12;
 		chordNotes[0] = (3 + rrand(1,(randomNote-1)))%12;
 		chordNotes[0] = (5 + rrand(1,(randomNote-1)))%12;
-		rhythmPattern =  lengthDissonance[tmp].choose;
+		nuLength =  lengthDissonance[tmp].choose;
 		},{}
 	);		
 	
 	//	scelta delle note, pitch numera da 0 a 14
 	pitchPattern = [];	
-	for (0, (rhythmPattern.size-1), {arg i;pitchPattern= pitchPattern ++ '***';});
-	pitchPattern[rrand(0,rhythmPattern.size-1)] = [chordNotes[rrand(0,2)], range+chordNotes[rrand(0,2)]].choose; // a caso in mezzo metto una nota dell'accordo
+	for (0, (nuLength.size-1), {arg i;pitchPattern= pitchPattern ++ '***';});
+	pitchPattern[rrand(0,nuLength.size-1)] = [chordNotes[rrand(0,2)], range+chordNotes[rrand(0,2)]].choose; // a caso in mezzo metto una nota dell'accordo
 
 	pitchPattern[0]=chordNotes[rrand(0,2)];  //primo della battuta: uno dei gradi dell'accordo
-	pitchPattern[rhythmPattern.size-1]=chordNotes[rrand(0,2)];  //ultimo della battuta: uno dei gradi dell'accordo
-	pitchPattern[rhythmPattern.maxIndex] = chordNotes[0];
+	pitchPattern[nuLength.size-1]=chordNotes[rrand(0,2)];  //ultimo della battuta: uno dei gradi dell'accordo
+	pitchPattern[nuLength.maxIndex] = chordNotes[0];
 
-	if(rhythmPattern.size>1,{
-		for (2, rhythmPattern.size-1,{
+	if(nuLength.size>1,{
+		for (2, nuLength.size-1,{
 			arg i;
-			if(rhythmPattern[i-1]!=0.5,{	pitchPattern[i-1] = chordNotes[rrand(0,2)];},{});
+			if(nuLength[i-1]!=0.5,{	pitchPattern[i-1] = chordNotes[rrand(0,2)];},{});
 			if(pitchPattern[i-1]=='***',{
 				if(melodyDirection,{
 					if(pitchPattern[i-2]>19,{pitchPattern[i-1] = pitchPattern[i-2]-1},{pitchPattern[i-1] = pitchPattern[i-2]+1});
@@ -260,7 +258,7 @@ soloLine = { |x|
 	if((themeFlag<themeLength).and(beatCounter>16),{
 		themeFlag = themeFlag + 1;
 		themePitchArray = themePitchArray.add(pitchPattern);
-		themeRhythmArray = themeRhythmArray.add(rhythmPattern);
+		themeRhythmArray = themeRhythmArray.add(nuLength);
 		themeChordArray = themeChordArray.add(chordNotes);
 		"costruendo il tema, battuta numero ".post;
 		themeFlag.postln;
@@ -274,7 +272,7 @@ soloLine = { |x|
 };
 
 lengthAdjustment = { |x|
-	if((currentRhythmSet==0).and(rhythmSetCounter[0]/beatCounter > 0.2),{
+	if((actualLengthSet==0).and(lengthCounter[0]/beatCounter > 0.2),{
 		~lengthProbabilityMatrix[0][0] = ~lengthProbabilityMatrix[0][0]+0.04;
 		~lengthProbabilityMatrix[0][1] = ~lengthProbabilityMatrix[0][1]-0.01;
 		~lengthProbabilityMatrix[0][2] = ~lengthProbabilityMatrix[0][2]-0.01;
@@ -297,9 +295,9 @@ harmonicProgression = { |x|
 
 
 ///////////////////// setting variables
-currentRhythmSet = rrand(0,3);
-rhythmSetCounter[currentRhythmSet] = rhythmSetCounter[currentRhythmSet] + 1; // quante volte abbiamo pescato da quell'insieme
-startingLength = length[currentRhythmSet].choose;
+actualLengthSet = rrand(0,3);
+lengthCounter[actualLengthSet] = lengthCounter[actualLengthSet] + 1;
+startingLength = length[actualLengthSet].choose;
 beatCounter=0;
 themeFlag=0;
 themePitchArray=[];
@@ -312,7 +310,7 @@ currentChord = [0,3,4].choose;
 nuAccompaniment = harmony[currentChord];
 chordNotes = nuAccompaniment;
 ~actualTones = harmony[currentChord];
-accompanimentStream = Pseq(nuAccompaniment, inf).asStream; // accompaniment
+a1 = Pseq(nuAccompaniment, inf).asStream; // accompaniment
 currentTone = ~notes.indexOf(startingTone);
 nextChord = nil;
 currentCounter=0;
@@ -325,10 +323,12 @@ proxMed = 0.3;
 proxLow = 0.2;
 
 ///////////////////// accompaniment fellow
-accompanimentTask = Task({
+t = Task({
 	loop({
+		var a1value;
 		beatCounter = beatCounter + 1;
 		currentCounter=currentCounter+1;
+		a1value = a1.value;
 		if (beatCounter == 1, {currentChord = [0,3,4].choose;},{});
 		if (beatCounter%8 == 0, {currentChord = 0},{});
 		if (beatCounter%8 == 7, {currentChord = 4},{});
@@ -382,7 +382,7 @@ accompanimentTask = Task({
 					mod5=1;	
 					gradesMaj = [6,7,9,11,12,14,16,18,19,21,23,24,26,28,30,32,34];
 					gradesHMin = [6,7,9,10,12,14,15,18,19,21,22,24,26,27,30,32,34];
-					// currentCounter=0;
+					currentCounter=0;
 				}{prob==4}{ 					//vado al quarto grado
 					if(currentChord==0,{
 						"modulazione di quarta".postln;
@@ -394,7 +394,7 @@ accompanimentTask = Task({
 						currentChord = 5;
 						nextChord = 0;
 						currentTone = currentTone;
-						// currentCounter = 0;
+						currentCounter = 0;
 					},{});
 				}
 			},{});
@@ -455,7 +455,7 @@ accompanimentTask = Task({
 			(themeCounter+1).postln;
 			pitchPattern = themePitchArray[themeCounter];
 			chordNotes = themeChordArray[themeCounter];
-			rhythmPattern = themeRhythmArray[themeCounter];
+			nuLength = themeRhythmArray[themeCounter];
 			quarti = 0;
 			case{themeCounter == 3}{quarti = rrand(1,3);}
 			    {themeCounter == 6}{quarti = 3}
@@ -465,11 +465,11 @@ accompanimentTask = Task({
 
 		"Degree:".post; (currentChord+1).post;
 		"  Chord:".post; ~notes[(grades[chordNotes]+currentTone)%12].post;
-		"  Length:".post; rhythmPattern.post;
+		"  Length:".post; nuLength.post;
 
 		
-		pitchStream = Pseq(pitchPattern, inf).asStream;
-		rhythmStream = Pseq(rhythmPattern, inf).asStream;
+		p1 = Pseq(pitchPattern, inf).asStream;
+		q = Pseq(nuLength, inf).asStream;
 		// actual pitch to be played (pretend we are in Maj Scale):
 		// 60 is the central C, we just take the grades of the chosen pattern in the mapped mode
 		
@@ -545,42 +545,42 @@ accompanimentTask = Task({
 			};
 
 		harmonicProgression.(currentChord);
-		rhythmSetCounter[currentRhythmSet] = rhythmSetCounter[currentRhythmSet] + 1;
+		lengthCounter[actualLengthSet] = lengthCounter[actualLengthSet] + 1;
 		"".postln;
 	});
 });
 
 
 ///////////////////// solo fellow
-melody1Task = Task({
+t2 = Task({
 	loop({arg tmpVel;
-		var tmpPitch = pitchStream.value;
+		var tmpPitch = p1.value;
 		var tmpLength =  (60/~tempo)*q.value; // controllo sui BPM
 
 		// actual pitch to be played (pretend we are in Maj Scale):
 		// 60 is the central C, we just take the grades of the chosen pattern in the mapped mode
-		absolutePitch = 59+currentTone+grades[tmpPitch];
+		aP = 59+currentTone+grades[tmpPitch];
 		
 		if(rrand(4,12) <= randomNote,{
-			absolutePitch = absolutePitch + rrand(-1*randomNote,1*randomNote)},{}
+			aP = aP + rrand(-1*randomNote,1*randomNote)},{}
 		);
 	
 		tmpVel = rrand(90,120)*volRangeSolo;
 		delay = rrand(0,0.04)-0.02;
 		delay.wait;
-		m.noteOn(1, absolutePitch, tmpVel);
-		//m.noteOn(2, absolutePitch, tmpVel);
+		m.noteOn(1, aP, tmpVel);
+		//m.noteOn(2, aP, tmpVel);
 		(tmpLength-delay).wait;
-		m.noteOff(1, absolutePitch, tmpVel);
-		//m.noteOff(2, absolutePitch, tmpVel);
+		m.noteOff(1, aP, tmpVel);
+		//m.noteOff(2, aP, tmpVel);
 	});
 });
 
 
 soloLine.(1);
-pitchStream = Pseq(pitchPattern, inf).asStream;
-rhythmStream = Pseq(rhythmPattern, inf).asStream;
+p1 = Pseq(pitchPattern, inf).asStream;
+q = Pseq(nuLength, inf).asStream;
 
-accompanimentTask.start;
-melody1Task.start;
+t.start;
+t2.start;
 )
