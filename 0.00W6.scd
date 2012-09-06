@@ -47,18 +47,16 @@ m.connect(1);// and connect SC's first port to your device's port with for examp
 
 /////////////////////  OSC connections
 
-o1 = OSCresponderNode(nil, "/processing", {
+o1 = OSCresponderNode(nil, "/distance", {
 	|t, r, mesg|
-	var tmp = mesg[1];
+	proximity = mesg[1];
 	//tmp.postln;
-	proximity = ((-1*tmp)+200)/225;
-	if(proximity<0,{proximity=0},{});
-	if(proximity>225,{proximity=1},{});
 	"proximity: ".postln;
 	proximity.postln;
 	heart = (proximity/3)+0.5;
 	skin = (proximity/4)+0.4;
 }).add;
+
 
 o3 = OSCresponderNode(nil, "/prox", {
 	|t, r, mesg|
@@ -95,7 +93,7 @@ skin = 0.5;
 ///////////////////// Mode | BPM
 
 mode = "Maj"; // Maj
-~tempo = 160*skin;
+~tempo = 150*skin;
 melodyDirection = true; // false -> basso
 leftHand = 0; // quarti=0, funereo=1, triste=2, medio=3 
 
@@ -471,9 +469,9 @@ accompanimentTask = Task({
 				(3*(60/~tempo)).wait;
 
 				2.do{ |i|
-					m.noteOn(16, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
+					m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 					(4*(60/(8*~tempo))).wait;
-					m.noteOff(16, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
+					m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 				};
 
 				m.noteOff(0, 35+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc);
@@ -483,14 +481,14 @@ accompanimentTask = Task({
 				m.noteOn(0, 35+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc);
 				(2*(60/~tempo)).wait;
 				2.do{ |i|
-					m.noteOn(16, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
+					m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 					(4*(60/(8*~tempo))).wait;
-					m.noteOff(16, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
+					m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 				};
 				2.do{ |i|
-					m.noteOn(16, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
+					m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 					(4*(60/(8*~tempo))).wait;
-					m.noteOff(16, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
+					m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 				};
 				m.noteOff(0, 35+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc);
 			}
@@ -498,32 +496,32 @@ accompanimentTask = Task({
 			{leftHand==3}{
 				m.noteOn(0, 35+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc);
 				2.do{ |i|
-					m.noteOn(16, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
+					m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 					(4*(60/(8*~tempo))).wait;
-					m.noteOff(16, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
+					m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 				};
 				2.do{ |i|
-					m.noteOn(16, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
+					m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 					(4*(60/(8*~tempo))).wait;
-					m.noteOff(16, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
+					m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 				};
 				if ((rrand(0,1) > 0).and(0 == 0),{
 					2.do{ |i|
-						m.noteOn(16, 47+relativeKeyN+degree[chordNotes[i]+1], 80*volRangeAcc);
+						m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]+1], 80*volRangeAcc);
 						(4*(60/(8*~tempo))).wait;
-						m.noteOff(16, 47+relativeKeyN+degree[chordNotes[i]+1], 80*volRangeAcc);
+						m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]+1], 80*volRangeAcc);
 					};
 				},{
 					2.do{ |i|
-						m.noteOn(16, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
+						m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 						(4*(60/(8*~tempo))).wait;
-						m.noteOff(16, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
+						m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 					};
 				});
 				2.do{ |i|
-					m.noteOn(16, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
+					m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 					(4*(60/(8*~tempo))).wait;
-					m.noteOff(16, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
+					m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 				};
 				
 				m.noteOff(0, 35+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc);
@@ -554,15 +552,15 @@ melodyTask = Task({
 		);
 	
 		tmpVel = rrand(90,120)*volRangeSolo;
-		delay = 0.05;
+		delay = 0.03;
 		m.noteOn(1, absolutePitch, tmpVel);
 		delay.wait;
-		if(themeActive,{m.noteOn(0, voiceTranspose, tmpVel)},{m.noteOn(0, absolutePitch, tmpVel)});
+		if(themeActive,{m.noteOn(2, voiceTranspose, tmpVel)},{m.noteOn(2, absolutePitch, tmpVel)});
 		//m.noteOn(2, absolutePitch, tmpVel);
 		(tmpLength-delay).wait;
 		m.noteOff(1, absolutePitch, tmpVel);
 		//0.01.wait;
-		if(themeActive,{m.noteOff(0, voiceTranspose, tmpVel)},{m.noteOff(0, absolutePitch, tmpVel)});
+		if(themeActive,{m.noteOff(2, voiceTranspose, tmpVel)},{m.noteOff(2, absolutePitch, tmpVel)});
 		//m.noteOff(2, absolutePitch, tmpVel);
 	});
 });
