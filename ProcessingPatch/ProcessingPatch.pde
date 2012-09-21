@@ -11,7 +11,7 @@ OscP5 oscP5;
 NetAddress myRemoteLocation, sendTo;
 String distance;
 float tempo = 0;
-int maxDistance = 400;
+int maxDistance = 780;
 int minDistance = 50;
 
 void setup() {

@@ -1,6 +1,7 @@
 
 ///////////////////// TO DO
 //	- fade in all'inizio (fabio)
+//	- ripetere lo stesso pattern con una certa probabilita' (fabio)
 //	- non deve modulare in mezzo al tema oppure mettiamo i gradi nell'array del tema (fabio)
 //	- gestione modulazione su proxVeryHigh (raul)
 //	- variazione degli accompagnamenti (raul)
@@ -29,7 +30,7 @@
 
 var accompanimentTask, melodyTask, melody2Task;
 var melodyStream, rhythmStream, accompanimentStream;
-var melodyPattern, rhythmPattern, currentChordDegree, chordNotes, nextChord, currentRhythmSet, rhythmSetCounter;
+var melodyPattern, rhythmPattern, rhythmPatternLength, currentChordDegree, chordNotes, nextChord, currentRhythmSet, rhythmSetCounter;
 var mode, beatCounter, melodyDirection, rhythmMatrix, selectedChord, degree, degreeMaj, degreeHMin, harmony, harmonyHMin, harmonyMaj, startingRhythm, key, relativeKeyN;
 var mod5, mod4, barsPreModCounter;
 var themeMelody, themeChord, themeFlag, themeCounter, themeChordArray, themeMelodyArray, themeRhythmArray, themeRhythm, themeActive; // theme management
@@ -189,7 +190,7 @@ soloLine = { |x|
 		{(beatCounter!=1).and(beatCounter%4!=0)}{
 			currentRhythmSet = [0,1,2,3,4,5,6].wchoose(~rhythmProbabilityMatrix[currentRhythmSet]);
 			rhythmPattern = rhythmMatrix.wchoose(~rhythmProbabilityMatrix[currentRhythmSet]).choose;
-					};		
+					};
 
 	// dissono un po'	
 	if(rrand(4,12) <= randomNote,{
@@ -324,6 +325,7 @@ accompanimentTask = Task({
 
 //////////////////////// REAL TIME SELECTION
 		~tempo = 200*(skin+0.1);
+		~tempo = 150;
 		if(proximity>proxHigh,{
 			mode = "Maj";
 			melodyDirection = true; // false -> basso
@@ -442,19 +444,21 @@ accompanimentTask = Task({
 			(themeCounter+1).postln;
 			melodyPattern = themeMelodyArray[themeCounter];
 			chordNotes = themeChordArray[themeCounter];
-			rhythmPattern = themeRhythmArray[themeCounter];
 			leftHand = 0;
 			case{themeCounter == 3}{leftHand = rrand(1,3);}
 			    {themeCounter == 6}{leftHand = 3}
 			    {themeCounter == 7}{leftHand = rrand(1,3);};
 			themeCounter = themeCounter +1;
 			},{});
-
-		"Degree:".post; (currentChordDegree+1).post;
+		"".postln;
+		beatCounter.post;
+		"  Degree:".post; (currentChordDegree+1).post;
 		"  Chord:".post; ~notes[(degree[chordNotes]+relativeKeyN)%12].post;
 		"  Rhythm:".post; rhythmPattern.post;
-		melodyStream = Pseq(melodyPattern, inf).asStream;
+		
 		rhythmStream = Pseq(rhythmPattern, inf).asStream;
+		melodyStream = Pseq(melodyPattern, inf).asStream;
+		rhythmPatternLength = rhythmPattern.size.postln;
 		// actual pitch to be played (pretend we are in Maj Scale):
 		// 60 is the central C, we just take the degree of the chosen pattern in the mapped mode
 		case{leftHand==0}{
@@ -539,8 +543,13 @@ accompanimentTask = Task({
 melodyTask = Task({
 	loop({arg tmpVel;
 		var tmpPitch = melodyStream.value;
-		var tmpLength =  (60/~tempo)*rhythmStream.value; // controllo sui BPM
+		var tmpLength = rhythmStream.value; // controllo sui BPM
 		var voiceTranspose;
+//		"".postln;
+//		tmpLength.post;
+		tmpLength = (60/~tempo)*tmpLength;
+		rhythmPatternLength = (rhythmPatternLength-1).post;
+		" ".post;
 		// actual pitch to be played (pretend we are in Maj Scale):
 		// 60 is the central C, we just take the degree of the chosen pattern in the mapped mode
 		absolutePitch = 59+relativeKeyN+degree[tmpPitch];
@@ -552,23 +561,28 @@ melodyTask = Task({
 		);
 	
 		tmpVel = rrand(90,120)*volRangeSolo;
-		delay = 0.03;
-		m.noteOn(1, absolutePitch, tmpVel);
-		delay.wait;
-		if(themeActive,{m.noteOn(2, voiceTranspose, tmpVel)},{m.noteOn(2, absolutePitch, tmpVel)});
-		//m.noteOn(2, absolutePitch, tmpVel);
-		(tmpLength-delay).wait;
-		m.noteOff(1, absolutePitch, tmpVel);
-		//0.01.wait;
-		if(themeActive,{m.noteOff(2, voiceTranspose, tmpVel)},{m.noteOff(2, absolutePitch, tmpVel)});
-		//m.noteOff(2, absolutePitch, tmpVel);
+		
+		if(rhythmPatternLength>=0,{
+			delay = 0.03;
+			m.noteOn(1, absolutePitch, tmpVel);
+			delay.wait;
+			if(themeActive,{m.noteOn(2, voiceTranspose, tmpVel)},{m.noteOn(2, absolutePitch, tmpVel)});
+			//m.noteOn(2, absolutePitch, tmpVel);
+			(tmpLength-delay).wait;
+			m.noteOff(1, absolutePitch, tmpVel);
+			//0.01.wait;
+			if(themeActive,{m.noteOff(2, voiceTranspose, tmpVel)},{m.noteOff(2, absolutePitch, tmpVel)});
+			//m.noteOff(2, absolutePitch, tmpVel);
+		},{
+			wait(0.01);
+		});
 	});
 });
 
 
 soloLine.(1);
-melodyStream = Pseq(melodyPattern, inf).asStream;
 rhythmStream = Pseq(rhythmPattern, inf).asStream;
+melodyStream = Pseq(melodyPattern, inf).asStream;
 
 accompanimentTask.start;
 melodyTask.start;
