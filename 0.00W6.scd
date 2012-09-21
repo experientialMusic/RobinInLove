@@ -30,7 +30,7 @@
 
 var accompanimentTask, melodyTask, melody2Task;
 var melodyStream, rhythmStream, accompanimentStream;
-var melodyPattern, rhythmPattern, rhythmPatternLength, currentChordDegree, chordNotes, nextChord, currentRhythmSet, rhythmSetCounter;
+var melodyPattern, rhythmPattern, rhythmPatternBackup, rhythmPatternLength, currentChordDegree, chordNotes, nextChord, currentRhythmSet, rhythmSetCounter;
 var mode, beatCounter, melodyDirection, rhythmMatrix, selectedChord, degree, degreeMaj, degreeHMin, harmony, harmonyHMin, harmonyMaj, startingRhythm, key, relativeKeyN;
 var mod5, mod4, barsPreModCounter;
 var themeMelody, themeChord, themeFlag, themeCounter, themeChordArray, themeMelodyArray, themeRhythmArray, themeRhythm, themeActive; // theme management
@@ -325,7 +325,6 @@ accompanimentTask = Task({
 
 //////////////////////// REAL TIME SELECTION
 		~tempo = 200*(skin+0.1);
-		~tempo = 150;
 		if(proximity>proxHigh,{
 			mode = "Maj";
 			melodyDirection = true; // false -> basso
@@ -420,7 +419,7 @@ accompanimentTask = Task({
 		
 		~actualTones = chordNotes;
 		soloLine.(1);
-		
+		if (rrand(1,3)==1, {rhythmPattern = rhythmPatternBackup; "ripeto".postln;},{}); // con qualche probabilita'ripesco
 		// riseleziono il tema a caso
 		if ((proximity>proxMed).and(themeFlag==themeRhythm).and(rrand(0,6)>4),{
 			// entro solo se il tema e'stato costruito
@@ -452,6 +451,7 @@ accompanimentTask = Task({
 			},{});
 		"".postln;
 		beatCounter.post;
+		
 		"  Degree:".post; (currentChordDegree+1).post;
 		"  Chord:".post; ~notes[(degree[chordNotes]+relativeKeyN)%12].post;
 		"  Rhythm:".post; rhythmPattern.post;
@@ -459,6 +459,7 @@ accompanimentTask = Task({
 		rhythmStream = Pseq(rhythmPattern, inf).asStream;
 		melodyStream = Pseq(melodyPattern, inf).asStream;
 		rhythmPatternLength = rhythmPattern.size.postln;
+		rhythmPatternBackup = rhythmPattern;
 		// actual pitch to be played (pretend we are in Maj Scale):
 		// 60 is the central C, we just take the degree of the chosen pattern in the mapped mode
 		case{leftHand==0}{
