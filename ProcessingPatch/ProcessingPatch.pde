@@ -38,9 +38,10 @@ void draw() {
   
   /* in the following different ways of creating osc messages are shown by example */
   OscMessage myMessage = new OscMessage("/distance"); 
-  myMessage.add(mapDistance(distance));
+  myMessage.add(distance);
   /* send the message */
   if ((millis()-tempo)>1000){
+    println(distance);
     oscP5.send(myMessage, sendTo); 
     tempo = millis();
   }; 
