@@ -1,5 +1,4 @@
-
-///////////////////// TO DO 
+///////////////////// TO DO
 //	- fade in all'inizio (fabio)
 //	- ripetere lo stesso pattern con una certa probabilita' (fabio)
 //	- non deve modulare in mezzo al tema oppure mettiamo i gradi nell'array del tema (fabio)
@@ -28,13 +27,13 @@
 
 (
 
-var accompanimentTask, melodyTask, melody2Task, startingTask;
+var accompanimentTask, melodyTask, startingTask;
 var melodyStream, rhythmStream, accompanimentStream;
-var melodyPattern, rhythmPattern, rhythmPatternLength, currentChordDegree, chordNotes, nextChord, currentRhythmSet, rhythmSetCounter;
+var melodyPattern, rhythmPattern, rhythmPatternBackup, rhythmPatternLength, currentChordDegree, chordNotes, nextChord, currentRhythmSet, rhythmSetCounter;
 var mode, beatCounter, melodyDirection, rhythmMatrix, selectedChord, degree, degreeMaj, degreeHMin, harmony, harmonyHMin, harmonyMaj, startingRhythm, key, relativeKeyN;
 var mod5, mod4, barsPreModCounter;
 var themeMelody, themeChord, themeFlag, themeCounter, themeChordArray, themeMelodyArray, themeRhythmArray, themeRhythm, themeActive; // theme management
-var o1, o2, o3, melodyRange, varDissonance, dissonanceRhythm, dissonanceControl, starta; // OSC
+var o1, o2, o3, starta, melodyRange, varDissonance, dissonanceRhythm, dissonanceControl; // OSC
 var proxVeryHigh, proxHigh, proxMed, proxLow; // proximity management
 var soloLine, harmonicProgression, rhythmAdjustment, leftHand, delay, absolutePitch;
 var proximity, volume, bpm, other, smooth, proxMod;
@@ -46,43 +45,38 @@ m = MIDIOut(0, MIDIClient.destinations.at(0).uid); // create a MIDI out connecti
 m.connect(1);// and connect SC's first port to your device's port with for example QJackCtl
 
 
-/////////////////////  getting values
-
-volume = 0.5;		// tace finche'non entrano i soggetti 
-proximity = 0.5;	// dissonanza, modo, ottava
-bpm = 0.5;
-
-// fino a 0.7 maggiore
-// 0.4 - 0.7 minore
-// 0/0.1 - 0.1/0.2 - 0.2/0.4 dissonanze
-
-
-
 /////////////////////  OSC connections
 
 o1 = OSCresponderNode(nil, "/distance", {
 	|t, r, mesg|
 	proximity = mesg[1];
 	//tmp.postln;
-	"".postln;
 	"proximity: ".post;
 	proximity.postln;
-	// volume = (proximity/3)+0.5;
+	volume = (proximity/3)+0.5;
 	bpm = (proximity/2)+0.4;
-	"bpm: ".post;
-	bpm.postln;
 }).add;
 
-o2 = OSCresponderNode(nil, "/start", {
+o2 = OSCresponderNode(nil, "/volume", {
+	|t, r, mesg|
+	volume = mesg[1]; //work on the difference between the 2 guys
+}).add;
+
+o3 = OSCresponderNode(nil, "/start", {
 	|t, r, mesg|
 	starta = mesg[1];
 }).add;
 
 
-o3 = OSCresponderNode(nil, "/volume", {
-	|t, r, mesg|
-	volume = mesg[1]; //work on the difference between the 2 guys
-}).add;
+/////////////////////  getting values
+
+volume = 0.5;		// tace finche'non entrano i soggetti 
+proximity = 0.5;	// dissonanza, modo, ottava
+bpm = 0.7;
+
+// fino a 0.7 maggiore
+// 0.4 - 0.7 minore
+// 0/0.1 - 0.1/0.2 - 0.2/0.4 dissonanze
 
 
 ///////////////////// Mode | BPM
@@ -147,18 +141,18 @@ rhythmMatrix = [
 		[[0.5, 0.5, 0.5, 0.5, 1, 0.5, 0.5], [0.5, 0.5, 0.5, 0.5, 0.5, 1, 0.5], [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1], [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]], // primi due: ottavi		
 		[[1.5, 0.5, 1, 1], [1.5, 0.5, 1, 0.5, 0.5], [1.5, 0.5, 0.5, 1, 0.5], [1.5, 0.5, 0.5, 0.5, 1], [1.5, 0.5, 0.5, 0.5, 0.5, 0.5], [1.5, 0.5, 1.5, 0.5], [1.5, 0.5, 0.5, 1, 0.5]], // puntati 1.5-0.5 
 		[[0.5, 1, 0.5,1, 1], [0.5, 1, 0.5,1, 0.5, 0.5], [0.5, 1, 0.5,0.5, 1, 0.5], [0.5, 1, 0.5,0.5, 0.5, 1], [0.5, 1, 0.5,0.5, 0.5, 0.5, 0.5], [0.5, 1, 0.5,1.5, 0.5], [0.5, 1, 0.5,0.5, 1, 0.5], [1, 1, 0.5, 1, 0.5],[0.5, 0.5, 0.5, 0.5, 0.5, 1, 0.5]], // sincope
-					
+
 		[[4],[2,2],[1,1,2]], // finale a
 		[[1,0.5,0.5,2],[0.5,1,0.5,2],[0.5,0.5,0.5,0.5,2],[1,1,2]] // finale b
 		];
 
 dissonanceRhythm = [
-	[[2, 0.3, 0.7, 1], [1, 1.1, 1.9, 0.5, 0.5], [2,2], [0.2, 0.8, 0.8, 1, 0.2, 0.7, 0.3], [1,1,1,1], [1, 1, 0.5, 0.4, 1.1], [1.5, 0.7, 0.3, 0.5, 0.3, 0.7]],
+	[[2, 0.3, 0.7, 1], [1, 1.1, 1.9, 0.5, 0.5], [0.1,1.1,2.2,0.6], [0.2, 0.8, 0.8, 1, 0.2, 0.7, 0.3], [1,0.2,1,0.8], [1, 1, 0.5, 0.4, 1.1], [1.5, 0.7, 0.3, 0.5, 0.3, 0.7]],
 	[[0.8, 0.2, 0.3, 0.7, 0.6, 1.4], [4], [1, 0.8, 3, 0.2], [0.5, 1, 0.3, 1.7, 0.5], [0.5, 1.4, 0.6, 0.5, 0.7, 0.3], [0.6, 1.4, 0.8, 1.2], [0.5, 0.8, 0.7, 1.2, 0.5, 0.3]],
-	[[0.3, 0.4, 1.2, 0.6, 0.8, 0.7], [4], [0.3, 3.7], [2.8, 1.2], [0.8, 0.3, 2, 0.7, 0.2], [2,1,1], [0.3, 1.8, 0.3, 0.2, 0.7, 0.7], [0.4, 3.1, 0.5], [1,1,1.5,0.5], [0.2, 0.3, 0.8, 0.5, 0.7, 0.5, 0.2, 0.8]]
+	[[0.3, 0.4, 1.2, 0.6, 0.8, 0.7], [4], [0.3, 3.7], [2.8, 1.2], [0.8, 0.3, 2, 0.7, 0.2], [2,1,1], [0.3, 1.8, 0.3, 0.2, 0.7, 0.7], [0.4, 3.1, 0.5], [1.2,1,0.2,1.1,0.5], [0.2, 0.3, 0.8, 0.5, 0.7, 0.5, 0.2, 0.8]]
 	];
-	
-	
+
+
 // matrice dinamica, dove si definiscono le probabilita' per i 7 insiemi di pattern ritmici
 ~rhythmProbabilityMatrix = [
 						[1/5, 1/5, 1/5, 1/5, 1/5, 0, 0],
@@ -172,7 +166,7 @@ dissonanceRhythm = [
 
 ///////////////////// function definition for soloLine
 soloLine = { |x|
-	
+
 	//	scelta del pattern ritmico
 	case{beatCounter == 1}{rhythmPattern=startingRhythm;}
 		{beatCounter%4==0}{
@@ -195,7 +189,7 @@ soloLine = { |x|
 		rhythmPattern =  dissonanceRhythm[tmp].choose;
 		},{}
 	);		
-	
+
 	//	scelta delle note, pitch numera da 0 a 14
 	melodyPattern = [];	
 	for (0, (rhythmPattern.size-1), {arg i;melodyPattern= melodyPattern ++ '***';});
@@ -236,9 +230,9 @@ soloLine = { |x|
 			//melodyPattern.postln;
 		});},{});	
 	},{});	
-	
-	
-		
+
+
+
 	//	seleziona tema
 	if((themeFlag<themeRhythm).and(beatCounter>16),{
 		themeFlag = themeFlag + 1;
@@ -252,7 +246,7 @@ soloLine = { |x|
 		case{themeFlag-1 == 3}{leftHand = rrand(1,3);}
 		    {themeFlag-1 == 6}{leftHand = 3};
 		},{});
-	
+
 	rhythmAdjustment.(1);
 
 };
@@ -301,10 +295,10 @@ nextChord = nil;
 barsPreModCounter=0;
 mod5=0;
 mod4=0;
-proxVeryHigh = 0.85;
-proxHigh = 0.66;
-proxMed = 0.33;
-proxLow = 0.22;
+proxVeryHigh = 0.7;
+proxHigh = 0.5;
+proxMed = 0.3;
+proxLow = 0.2;
 
 ///////////////////// accompaniment fellow
 accompanimentTask = Task({
@@ -315,11 +309,10 @@ accompanimentTask = Task({
 		if (beatCounter == 1, {currentChordDegree = [0,3,4].choose;},{});
 		if (beatCounter%8 == 0, {currentChordDegree = 0},{});
 		if (beatCounter%8 == 7, {currentChordDegree = 4},{});
-		
+
 
 //////////////////////// REAL TIME SELECTION
 		~tempo = 150*bpm;
-		// ~tempo = 150;
 		if(proximity>proxHigh,{
 			mode = "Maj";
 			melodyDirection = true; // false -> basso
@@ -341,19 +334,16 @@ accompanimentTask = Task({
 		if(proximity<proxLow,{
 			leftHand = 0;
 		},{});
-		
-		
+
 		// con una certa probabilita' ogni volta che peschi una nota la metti a caso: random(3,12)<=randomNote la metti a caso 
-		
+
 		case{mode == "HMin"}{harmony = harmonyHMin;degree = degreeHMin}
 		{mode == "Maj"}{harmony = harmonyMaj;degree = degreeMaj};
-		
+
 		volRangeSolo = volume;
 		volRangeAcc = volume;
 
-		"volume: ".post;
-		volume.postln;
-		
+
 	/// gestione modulazione
 
 		if((barsPreModCounter>7).and(mod5==0).and(mod4==0).and(rrand(1,10)>proxMod).and((currentChordDegree == 0).or(currentChordDegree == 5)),{
@@ -385,13 +375,13 @@ accompanimentTask = Task({
 					},{});
 				}
 			},{});
-			
+
 		case{mod5==1}{mod5 = 2;	}
 			{mod5>1}{mod5 = mod5+1;};
-			
+
 		case{mod4==1}{mod4 = 2;	currentChordDegree = [4,1,6].wchoose([0.18,0.75,0.7])}
 			{mod4>1}{mod4 = mod4+1;};
-			
+
 		if((mod5>6).and(currentChordDegree==0),{	// condizione di terminazione della modulazione di quinta
 			mod5 = 0;
 			"modulazione di quinta terminata".postln;
@@ -400,10 +390,10 @@ accompanimentTask = Task({
 			nextChord=0;
 			barsPreModCounter=0;
 			},{});
-				
+
 		case{nextChord==[0,3]}{currentChordDegree = 0; nextChord=3;}
 			{nextChord==3}{currentChordDegree = [1,3].wchoose([0.25,0.75]); nextChord=nil;};
-		
+
 		if((mod4>6).and(currentChordDegree==0),{	// condizione di terminazione della modulazione di quarta
 			mod4 = 0;
 			"modulazione di quarta terminata".postln;
@@ -415,12 +405,12 @@ accompanimentTask = Task({
 		case{nextChord==[4,0]}{currentChordDegree = 4; nextChord=0;}
 			{nextChord==0}{currentChordDegree = 0; nextChord=nil;};	
 		chordNotes = harmony[currentChordDegree];
-		
+
 		~actualTones = chordNotes;
 		soloLine.(1);
-		
+		if (rrand(1,3)==1, {rhythmPattern = rhythmPatternBackup; "ripeto".postln;},{}); // con qualche probabilita'ripesco
 		// riseleziono il tema a caso
-		if ((proximity>proxMed).and(themeFlag==themeRhythm).and(rrand(0,6)>2),{
+		if ((proximity>proxMed).and(themeFlag==themeRhythm).and(rrand(0,6)>4),{
 			// entro solo se il tema e'stato costruito
 			if (themeCounter==themeRhythm,{
 				"THEME SELECTED".postln;
@@ -428,14 +418,14 @@ accompanimentTask = Task({
 				themeActive=true;
 				},{});
 			},{});
-		
+
 		if((proximity>proxVeryHigh).and(themeFlag==themeRhythm),{
 			if (themeCounter==themeRhythm,{
 				"THEME SELECTED".postln;
 				themeCounter = 0;
 				},{});
 		},{});
-	
+
 		if ((themeCounter<themeRhythm),{
 			themeActive=true;
 			"Theme bar number ".post;
@@ -450,20 +440,22 @@ accompanimentTask = Task({
 			},{});
 		"".postln;
 		beatCounter.post;
+
 		"  Degree:".post; (currentChordDegree+1).post;
 		"  Chord:".post; ~notes[(degree[chordNotes]+relativeKeyN)%12].post;
 		"  Rhythm:".post; rhythmPattern.post;
-		
+
 		rhythmStream = Pseq(rhythmPattern, inf).asStream;
 		melodyStream = Pseq(melodyPattern, inf).asStream;
 		rhythmPatternLength = rhythmPattern.size.postln;
+		rhythmPatternBackup = rhythmPattern;
 		// actual pitch to be played (pretend we are in Maj Scale):
 		// 60 is the central C, we just take the degree of the chosen pattern in the mapped mode
 		case{leftHand==0}{
 				m.noteOn(0, 47+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc); m.noteOn(16, (47+relativeKeyN+degree[chordNotes[1]]), 100*volRangeAcc);  m.noteOn(16, (47+relativeKeyN+degree[chordNotes[2]]), 100*volRangeAcc);
 				(4*(60/~tempo)).wait;
 				m.noteOff(0, 47+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc); m.noteOff(16, (47+relativeKeyN+degree[chordNotes[1]]), 100*volRangeAcc); m.noteOff(16, (47+relativeKeyN+degree[chordNotes[2]]), 100*volRangeAcc);
-				
+
 			}
 
 			{leftHand==1}{
@@ -478,7 +470,7 @@ accompanimentTask = Task({
 
 				m.noteOff(0, 35+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc);
 			}
-			
+
 			{leftHand==2}{
 				m.noteOn(0, 35+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc);
 				(2*(60/~tempo)).wait;
@@ -525,7 +517,7 @@ accompanimentTask = Task({
 					(4*(60/(8*~tempo))).wait;
 					m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 				};
-				
+
 				m.noteOff(0, 35+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc);
 			};
 
@@ -552,12 +544,12 @@ melodyTask = Task({
 		// 60 is the central C, we just take the degree of the chosen pattern in the mapped mode
 		absolutePitch = 59+relativeKeyN+degree[tmpPitch];
 		voiceTranspose = 59+relativeKeyN+degree[tmpPitch+2]; // la seconda voce, leggermente sfasata, va sopra di un intervallo di seconda nei temi
-		
-		
+
+
 		if(rrand(4,12) <= randomNote,{
 			absolutePitch = absolutePitch + rrand(-1*randomNote,1*randomNote)},{}
 		);
-	
+
 		tmpVel = rrand(90,120)*volRangeSolo;
 
 		if(rhythmPatternLength>=0,{
@@ -593,7 +585,6 @@ startingTask = Task({
 soloLine.(1);
 rhythmStream = Pseq(rhythmPattern, inf).asStream;
 melodyStream = Pseq(melodyPattern, inf).asStream;
-
 startingTask.start;
 
 )

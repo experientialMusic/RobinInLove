@@ -9,16 +9,17 @@ import netP5.*;
   
 OscP5 oscP5;
 NetAddress myRemoteLocation, sendTo;
+String distance;
 float tempo = 0;
-int maxDistance = 500;
+int maxDistance = 780;
 int minDistance = 50;
-String distance = "1000";
 
 void setup() {
   size(400,400);
   frameRate(25);
   /* start oscP5, listening for incoming messages at port 12000 */
   oscP5 = new OscP5(this,5103);
+  distance = "0";
   
   /* myRemoteLocation is a NetAddress. a NetAddress takes 2 parameters,
    * an ip address and a port number. myRemoteLocation is used as parameter in
@@ -34,21 +35,19 @@ void setup() {
 
 void draw() {
   background(0);
-  
-  /* in the following different ways of creating osc messages are shown by example */
-    OscMessage myMessage = new OscMessage("/distance");  
-    myMessage.add(distance);
+  /* send the message */
+  if ((millis()-tempo)>1000){
+    // distanceGrowth();
+    OscMessage myMessage = new OscMessage("/distance"); 
+    myMessage.add(float(distance));
     println(distance);
-    /* send the message */
-    if ((millis()-tempo)>1000){
-      oscP5.send(myMessage, sendTo); 
-      tempo = millis();
-    };
-  
-  if (keyPressed == true){
-     OscMessage myMessage2 = new OscMessage("/start"); 
-     myMessage2.add(1);
-     oscP5.send(myMessage2, sendTo);
+    oscP5.send(myMessage, sendTo); 
+    tempo = millis();
+  };
+  if(keyPressed){
+    OscMessage myMessage2 = new OscMessage("/start"); 
+    myMessage2.add(1);
+    oscP5.send(myMessage2, sendTo); 
   }
 }
 
@@ -71,4 +70,8 @@ float mapDistance(String distance){
   else if(fDistance<0) {fDistance=0;};
   println(fDistance);
   return fDistance;
+}
+
+void distanceGrowth(){
+  distance = str((float(distance)+0.05)%1);
 }
