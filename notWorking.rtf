@@ -1,0 +1,629 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1187\cocoasubrtf340
+\cocoascreenfonts1{\fonttbl\f0\fnil\fcharset0 Monaco;}
+{\colortbl;\red255\green255\blue255;\red191\green0\blue0;\red0\green0\blue255;\red0\green0\blue191;
+\red51\green51\blue191;\red96\green96\blue96;\red255\green102\blue0;\red0\green115\blue0;}
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+
+\f0\fs18 \cf0 \
+\cf2 ///////////////////// TO DO \cf0 \
+\cf2 //	- fade in all'inizio (fabio)\cf0 \
+\cf2 //	- ripetere lo stesso pattern con una certa probabilita' (fabio)\cf0 \
+\cf2 //	- non deve modulare in mezzo al tema oppure mettiamo i gradi nell'array del tema (fabio)\cf0 \
+\cf2 //	- gestione modulazione su proxVeryHigh (raul)\cf0 \
+\cf2 //	- variazione degli accompagnamenti (raul)\cf0 \
+\
+\cf2 //	- intro evenutale di 2 o 4 battute (anche solo una mano), da farsi come oggetto\cf0 \
+\cf2 //	- metrica del pezzo\cf0 \
+\cf2 //	- aggiungere qualche accordo alterato\cf0 \
+\
+\cf2 ///////////////////// MODULAZIONI\cf0 \
+\cf2 //	- per cromatismo o per accordo comune\cf0 \
+\cf2 //	- V grado: 	a un certo punto quando capita l'accordo di I, V, VI, posso triggerare la modulazione al V grado e shifto\cf0 \
+\cf2 //				il primo accordo sara'il V della nuova scala, poi il primo e poi via seguendo\cf0 \
+\cf2 //				dopo 4, 6, 8 battute chiamo V-reverse = IV\cf0 \
+\cf2 //	- IV grado:	ho gia'la sensibile, capita un primo grado, decido di andare al IV, shifto e vado al primo, cui segue quarto (.75) o secondo (.25) e via dicendo\cf0 \
+\cf2 //				dopo 4, 6, 8 battute chiamo IV-reverse (o bis) = V\cf0 \
+\cf2 //	- IV grado bis: capita il 2grado vecchio (VI nuovo), shifto in scala ma non restto il counter, vado sul quarto\cf0 \
+\cf2 //	- IV, V grado poi si ritorna\cf0 \
+\
+\cf2 ///////////////////// MODULAZIONE (min/maj)\cf0 \
+\cf2 //	- I algorithm:	arrivo al IV-V grado e mi piazzo al I minore della stessa tonalita' (e viceversa) non e'di passaggio\cf0 \
+\cf2 //	- II algorithm:	al relativo VI grado, stesse note ma inserisco una sensibile (3 grado del vecchio), \cf0 \
+\cf2 //					quando ci capita un secondo shifta, va al V del nuovo, si resetta il counter e va al primo del nuovo e il tema si rifara'subito cambiato di modo\cf0 \
+\cf2 //					torniamo indietro quando capita il primo, si shifa e si va al secondo della nuova, che va al V, reset counter e si va al primo\cf0 \
+\
+(\
+\
+\cf3 var\cf0  accompanimentTask, melodyTask, melody2Task, startingTask;\
+\cf3 var\cf0  melodyStream, rhythmStream, accompanimentStream;\
+\cf3 var\cf0  melodyPattern, rhythmPattern, rhythmPatternLength, currentChordDegree, chordNotes, nextChord, currentRhythmSet, rhythmSetCounter;\
+\cf3 var\cf0  mode, beatCounter, melodyDirection, rhythmMatrix, selectedChord, degree, degreeMaj, degreeHMin, harmony, harmonyHMin, harmonyMaj, startingRhythm, key, relativeKeyN;\
+\cf3 var\cf0  mod5, mod4, barsPreModCounter;\
+\cf3 var\cf0  themeMelody, themeChord, themeFlag, themeCounter, themeChordArray, themeMelodyArray, themeRhythmArray, themeRhythm, themeActive; \cf2 // theme management\cf0 \
+\cf3 var\cf0  o1, o2, o3, o4, o5, o6, o7, melodyRange, varDissonance, dissonanceRhythm, dissonanceControl, starta; \cf2 // OSC\cf0 \
+\cf3 var\cf0  proxVeryHigh, proxHigh, proxMed, proxLow; \cf2 // proximity management\cf0 \
+\cf3 var\cf0  soloLine, harmonicProgression, rhythmAdjustment, leftHand, delay, absolutePitch;\
+\cf3 var\cf0  proximity, volume, bpm, other, smooth, proxMod;\
+\cf3 var\cf0  volRangeSolo, volRangeAcc;\
+\cf3 var\cf0  randomNote; \cf2 //variabili per proximity;\cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\cf4 MIDIClient\cf0 .init(0,1,2); \cf2 // initialize the MIDI client:	\cf0 \
+m = \cf4 MIDIOut\cf0 (0, \cf4 MIDIClient\cf0 .destinations.at(0).uid); \cf2 // create a MIDI out connection:\cf0 \
+m.connect(1);\cf2 // and connect SC's first port to your device's port with for example QJackCtl\cf0 \
+\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\cf2 /////////////////////  OSC connections\cf0 \
+\
+o1 = \cf4 OSCresponderNode\cf0 (\cf5 nil\cf0 , \cf6 "/distance"\cf0 , \{\
+	\cf3 |t, r, mesg|\cf0 \
+	proximity = mesg[1];\
+	\cf2 //tmp.postln;\cf0 \
+	\cf6 ""\cf0 .postln;\
+	\cf6 "proximity: "\cf0 .post;\
+	proximity.postln;\
+	\cf2 // volume = (proximity/3)+0.5;\cf0 \
+	bpm = (proximity/4)+0.4;\
+	"bpm: ".post;\
+	bpm.postln;\
+\}).add;\
+\
+o2 = \cf4 OSCresponderNode\cf0 (\cf5 nil\cf0 , \cf6 "/start"\cf0 , \{\
+	\cf3 |t, r, mesg|\cf0 \
+	starta = mesg[1];\
+\}).add;\
+\
+\
+o4 = \cf4 OSCresponderNode\cf0 (\cf5 nil\cf0 , \cf6 "/volume"\cf0 , \{\
+	\cf3 |t, r, mesg|\cf0 \
+	volume = mesg[1]; \cf2 //work on the difference between the 2 guys\cf0 \
+\}).add;\
+o5 = \cf4 OSCresponderNode\cf0 (\cf5 nil\cf0 , \cf6 "/bpm"\cf0 , \{\
+	\cf3 |t, r, mesg|\cf0 \
+	bpm = mesg[1];\
+\}).add;\
+o6 = \cf4 OSCresponderNode\cf0 (\cf5 nil\cf0 , \cf6 "/smooth"\cf0 , \{\
+	\cf3 |t, r, mesg|\cf0 \
+	smooth = mesg[1];\
+\}).add;\
+o7 = \cf4 OSCresponderNode\cf0 (\cf5 nil\cf0 , \cf6 "/other"\cf0 , \{\
+	\cf3 |t, r, mesg|\cf0 \
+	other = mesg[1];\
+\}).add;\
+\
+\cf2 /////////////////////  getting values\cf0 \
+\
+volume = 0.5;		\cf2 // tace finche'non entrano i soggetti \cf0 \
+proximity = 0.5;	\cf2 // dissonanza, modo, ottava\cf0 \
+bpm = 0.5;\
+\
+\cf2 // fino a 0.7 maggiore\cf0 \
+\cf2 // 0.4 - 0.7 minore\cf0 \
+\cf2 // 0/0.1 - 0.1/0.2 - 0.2/0.4 dissonanze\cf0 \
+\
+\
+\cf2 ///////////////////// Mode | BPM\cf0 \
+\
+mode = \cf6 "Maj"\cf0 ; \cf2 // Maj\cf0 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\cf7 ~tempo\cf0  = 150*bpm;\
+melodyDirection = \cf5 true\cf0 ; \cf2 // false -> basso\cf0 \
+leftHand = 0; \cf2 // quarti=0, funereo=1, triste=2, medio=3 \cf0 \
+\
+\cf6 ""\cf0 .postln;\
+\cf6 ""\cf0 .postln;\
+\cf6 ""\cf0 .postln;\
+key = [\cf8 'A'\cf0 , \cf8 'B'\cf0 ,\cf8 'C'\cf0 ,\cf8 'C#'\cf0 ,\cf8 'D'\cf0 ,\cf8 'Eb'\cf0 ,\cf8 'E'\cf0 ,\cf8 'F'\cf0 ,\cf8 'Gb'\cf0 ,\cf8 'G'\cf0 ,\cf8 'Ab'\cf0 ].choose.postln;\
+melodyRange = 0; \cf2 // pitch range e'8 o 0\cf0 \
+varDissonance = 0; \cf2 // da 0 a 4\cf0 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\cf2 // themeRhythm = (rrand(0,1)+1)*4; // 4 o 8\cf0 \
+themeRhythm = 4;\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\cf6 "Lunghezza tema: "\cf0 .post;\
+themeRhythm.postln;\
+themeCounter = themeRhythm;\
+\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\cf2 ///////////////////// mapping degree to MIDI values\cf0 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\cf7 ~notes\cf0  = [\cf8 'B'\cf0 , \cf8 'C'\cf0 , \cf8 'C#'\cf0 , \cf8 'D'\cf0 , \cf8 'Eb'\cf0 , \cf8 'E'\cf0 , \cf8 'F'\cf0 , \cf8 'F#'\cf0 , \cf8 'G'\cf0 , \cf8 'Ab'\cf0 , \cf8 'A'\cf0 , \cf8 'Bb'\cf0 , \cf8 'B'\cf0 ];\
+degreeMaj = [-1,0,2,4,5,7,9,11,12,14,16,17,19,21,23,24,26,28,29,31];\
+degreeHMin = [-1,0,2,3,5,7,8,11,12,14,15,17,19,20,23,24,26,27,29,31];\
+\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\cf2 // probaility matrix of harmonic progression (from Piston W., Harmony, p.17)\cf0 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\cf7 ~accMatrix\cf0  =  [[0, 0.05, 0.07, 0.35, 0.35, 0.08, 0.1],\
+			[0.05, 0, 0.05, 0.05, 0.65, 0.20, 0],\
+			[0, 0.07, 0, 0.21, 0.07, 0.65, 0],\
+			[0.15, 0.15, 0.05, 0, 0.60, 0.05, 0],\
+			[0.64, 0.05, 0.05, 0.13, 0, 0.13, 0],\
+			[0.06, 0.35, 0.12, 0.12, 0.35, 0, 0],\
+			[1, 0, 0, 0, 0, 0, 0]];\
+\
+\
+harmonyMaj=[[1,3,5],[2,4,6],[3,5,7],[4,6,8],[5,7,9],[6,8,10],[7,9,11]];\
+harmonyHMin=[[1,3,5],[2,4,6],[3,5,7],[4,6,8],[5,7,9],[6,8,10],[7,9,11]];\
+\
+case\{mode == \cf6 "HMin"\cf0 \}\{harmony = harmonyHMin;degree = degreeHMin\}\
+	\{mode == \cf6 "Maj"\cf0 \}\{harmony = harmonyMaj;degree = degreeMaj\};\
+\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\cf2 ///////////////////// patterns of length definition \cf0 \
+\cf2 //	0-3 sono potenziali inizi - OK\cf0 \
+\cf2 //	0 va in liberta', piu'zeri ci sono piu'e facile che ci rimanga - SI\cf0 \
+\cf2 //	4 va + probabilmente su se stessa e con = prob su 2 e 3, se compare piu'volte aumenta la probabilita'che rimanga li  - NO\cf0 \
+\cf2 //	2, 3 vanno con la stessa prob uno sull'altro o sul 4 - OK\cf0 \
+\cf2 //	ogni 4 si va al finale - OK\cf0 \
+\cf2 //	5, 6 finali: 5 se si e'stati tanto in 1, 6 se si e'stati tanto negli altri - OK (circa)\cf0 \
+\
+\
+rhythmSetCounter = [0,0,0,0,0,0,0];	\cf2 // conteggio quante volte abbiamo pescato dai vari insiemi di lunghezze\cf0 \
+\
+rhythmMatrix = [\
+		[[2, 1, 1], [2, 1, 0.5, 0.5], [2, 0.5, 1, 0.5], [2, 0.5, 0.5, 1], [2, 0.5, 0.5, 0.5, 0.5], [4], [3, 0.5, 0.5], [3, 1], [1,1,2]], \cf2 // inzio in liberta'\cf0 \
+\
+		[[1, 1, 1, 0.5, 0.5], [1, 1, 0.5, 1, 0.5], [1, 1, 0.5, 0.5, 1], [1, 1, 0.5, 0.5, 0.5, 0.5]], \cf2 // primi due: quarti\cf0 \
+		[[0.5, 0.5, 0.5, 0.5, 1, 0.5, 0.5], [0.5, 0.5, 0.5, 0.5, 0.5, 1, 0.5], [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1], [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]], \cf2 // primi due: ottavi		\cf0 \
+		[[1.5, 0.5, 1, 1], [1.5, 0.5, 1, 0.5, 0.5], [1.5, 0.5, 0.5, 1, 0.5], [1.5, 0.5, 0.5, 0.5, 1], [1.5, 0.5, 0.5, 0.5, 0.5, 0.5], [1.5, 0.5, 1.5, 0.5], [1.5, 0.5, 0.5, 1, 0.5]], \cf2 // puntati 1.5-0.5 \cf0 \
+		[[0.5, 1, 0.5,1, 1], [0.5, 1, 0.5,1, 0.5, 0.5], [0.5, 1, 0.5,0.5, 1, 0.5], [0.5, 1, 0.5,0.5, 0.5, 1], [0.5, 1, 0.5,0.5, 0.5, 0.5, 0.5], [0.5, 1, 0.5,1.5, 0.5], [0.5, 1, 0.5,0.5, 1, 0.5], [1, 1, 0.5, 1, 0.5],[0.5, 0.5, 0.5, 0.5, 0.5, 1, 0.5]], \cf2 // sincope\cf0 \
+					\
+		[[4],[2,2],[1,1,2]], \cf2 // finale a\cf0 \
+		[[1,0.5,0.5,2],[0.5,1,0.5,2],[0.5,0.5,0.5,0.5,2],[1,1,2]] \cf2 // finale b\cf0 \
+		];\
+\
+dissonanceRhythm = [\
+	[[2, 0.3, 0.7, 1], [1, 1.1, 1.9, 0.5, 0.5], [2,2], [0.2, 0.8, 0.8, 1, 0.2, 0.7, 0.3], [1,1,1,1], [1, 1, 0.5, 0.4, 1.1], [1.5, 0.7, 0.3, 0.5, 0.3, 0.7]],\
+	[[0.8, 0.2, 0.3, 0.7, 0.6, 1.4], [4], [1, 0.8, 3, 0.2], [0.5, 1, 0.3, 1.7, 0.5], [0.5, 1.4, 0.6, 0.5, 0.7, 0.3], [0.6, 1.4, 0.8, 1.2], [0.5, 0.8, 0.7, 1.2, 0.5, 0.3]],\
+	[[0.3, 0.4, 1.2, 0.6, 0.8, 0.7], [4], [0.3, 3.7], [2.8, 1.2], [0.8, 0.3, 2, 0.7, 0.2], [2,1,1], [0.3, 1.8, 0.3, 0.2, 0.7, 0.7], [0.4, 3.1, 0.5], [1,1,1.5,0.5], [0.2, 0.3, 0.8, 0.5, 0.7, 0.5, 0.2, 0.8]]\
+	];\
+	\
+	\
+\cf2 // matrice dinamica, dove si definiscono le probabilita' per i 7 insiemi di pattern ritmici\cf0 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\cf7 ~rhythmProbabilityMatrix\cf0  = [\
+						[1/5, 1/5, 1/5, 1/5, 1/5, 0, 0],\
+						[1/5, 1/5, 1/5, 1/5, 1/5, 0, 0],\
+						[0.04, 0.1, 0.33, 0.20, 0.33, 0, 0],\
+						[0.05, 0.2, 0.2, 0.35, 0.2, 0, 0],\
+						[0.05, 0.2, 0.2, 0.2, 0.35, 0, 0],\
+						[0.5, 0.3, 0.1, 0.1, 0, 0, 0],\
+						[0.05, 0.25, 0.35, 0.35, 0, 0, 0]\
+						];\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\cf2 ///////////////////// function definition for soloLine\cf0 \
+soloLine = \{ \cf3 |x|\cf0 \
+	\
+	\cf2 //	scelta del pattern ritmico\cf0 \
+	case\{beatCounter == 1\}\{rhythmPattern=startingRhythm;\}\
+		\{beatCounter%4==0\}\{\
+			\cf2 //	5, 6 finali: 5 se si e'stati tanto in 1, 6 se si e'stati tanto negli altri\cf0 \
+			\cf3 var\cf0  tmp = [0,0,0,0,0,rhythmSetCounter[1],(rhythmSetCounter[2]+rhythmSetCounter[3]+rhythmSetCounter[4])/3];\
+			currentRhythmSet = tmp.maxIndex;\
+			rhythmPattern = rhythmMatrix[currentRhythmSet].choose;\
+			\}\
+		\{(beatCounter!=1).and(beatCounter%4!=0)\}\{\
+			currentRhythmSet = [0,1,2,3,4,5,6].wchoose(\cf7 ~rhythmProbabilityMatrix\cf0 [currentRhythmSet]);\
+			rhythmPattern = rhythmMatrix.wchoose(\cf7 ~rhythmProbabilityMatrix\cf0 [currentRhythmSet]).choose;\
+					\};\
+\
+	\cf2 // dissono un po'	\cf0 \
+	if(rrand(4,12) <= randomNote,\{\
+		\cf3 var\cf0  tmp = floor(randomNote/3.1)-1; \cf2 // 0, 1 o 2\cf0 \
+		chordNotes[0] = (1 + rrand(1,(randomNote-1)))%12;\
+		chordNotes[0] = (3 + rrand(1,(randomNote-1)))%12;\
+		chordNotes[0] = (5 + rrand(1,(randomNote-1)))%12;\
+		rhythmPattern =  dissonanceRhythm[tmp].choose;\
+		\},\{\}\
+	);		\
+	\
+	\cf2 //	scelta delle note, pitch numera da 0 a 14\cf0 \
+	melodyPattern = [];	\
+	for (0, (rhythmPattern.size-1), \{\cf3 arg\cf0  i;melodyPattern= melodyPattern ++ \cf8 '***'\cf0 ;\});\
+	melodyPattern[rrand(0,rhythmPattern.size-1)] = [chordNotes[rrand(0,2)], melodyRange+chordNotes[rrand(0,2)]].choose; \cf2 // a caso in mezzo metto una nota dell'accordo\cf0 \
+\
+	melodyPattern[0]=chordNotes[rrand(0,2)];  \cf2 //primo della battuta: uno dei gradi dell'accordo\cf0 \
+	melodyPattern[rhythmPattern.size-1]=chordNotes[rrand(0,2)];  \cf2 //ultimo della battuta: uno dei gradi dell'accordo\cf0 \
+	melodyPattern[rhythmPattern.maxIndex] = chordNotes[0];\
+\
+	if(rhythmPattern.size>1,\{\
+		for (2, rhythmPattern.size-1,\{\
+			\cf3 arg\cf0  i;\
+			if(rhythmPattern[i-1]!=0.5,\{	melodyPattern[i-1] = chordNotes[rrand(0,2)];\},\{\});\
+			if(melodyPattern[i-1]==\cf8 '***'\cf0 ,\{\
+				if(melodyDirection,\{\
+					if(melodyPattern[i-2]>19,\{melodyPattern[i-1] = melodyPattern[i-2]-1\},\{melodyPattern[i-1] = melodyPattern[i-2]+1\});\
+					\},\{\
+					if(melodyPattern[i-2]>0,\{melodyPattern[i-1] = melodyPattern[i-2]-1\},\{melodyPattern[i-1] = melodyPattern[i-2]+1\});\
+				\})\},\
+			\{\});\
+			if(melodyPattern[i-1]>19,\{melodyPattern=chordNotes[rrand(0,2)];\},\{\});\
+		\});\},\{\});\
+\
+	\cf2 // se c'e' dissonanza...\cf0 \
+	if(varDissonance>0,\{\
+		if(dissonanceRhythm.size>1,\{\
+			for (2, dissonanceRhythm.size-1,\{\
+				\cf3 arg\cf0  i;\
+				if(dissonanceRhythm[i-1]!=0.5,\{ melodyPattern[i-1] = chordNotes[rrand(0,2)]+1;\},\{\});\
+					if(melodyPattern[i-1]==\cf8 '***'\cf0 ,\{\
+						if(melodyDirection,\{\
+							if(melodyPattern[i-2]>19,\{melodyPattern[i-1] = melodyPattern[i-2]-(rrand(0,4))\},\{melodyPattern[i-1] = melodyPattern[i-2] + (rrand(1,5))\});\
+						\},\{\
+					if(melodyPattern[i-2]>0,\{melodyPattern[i-1] = melodyPattern[i-2]-(rrand(0,7))\},\{melodyPattern[i-1] = melodyPattern[i-2]+(rrand(1,7))\});\
+					\})\},\
+				\{\});\
+			if(melodyPattern[i-1]>19,\{melodyPattern=chordNotes[rrand(0,2)]+1;\},\{\});\
+			\cf2 //melodyPattern.postln;\cf0 \
+		\});\},\{\});	\
+	\},\{\});	\
+	\
+	\
+		\
+	\cf2 //	seleziona tema\cf0 \
+	if((themeFlag<themeRhythm).and(beatCounter>16),\{\
+		themeFlag = themeFlag + 1;\
+		themeMelodyArray = themeMelodyArray.add(melodyPattern);\
+		themeRhythmArray = themeRhythmArray.add(rhythmPattern);\
+		themeChordArray = themeChordArray.add(chordNotes);\
+		\cf6 "costruendo il tema, battuta numero "\cf0 .post;\
+		themeActive=\cf5 true\cf0 ;\
+		themeFlag.postln;\
+		leftHand = 2;\
+		case\{themeFlag-1 == 3\}\{leftHand = rrand(1,3);\}\
+		    \{themeFlag-1 == 6\}\{leftHand = 3\};\
+		\},\{\});\
+	\
+	rhythmAdjustment.(1);\
+\
+\};\
+\
+rhythmAdjustment = \{ \cf3 |x|\cf0 \
+	if((currentRhythmSet==0).and(rhythmSetCounter[0]/beatCounter > 0.2),\{\
+		\cf7 ~rhythmProbabilityMatrix\cf0 [0][0] = \cf7 ~rhythmProbabilityMatrix\cf0 [0][0]+0.04;\
+		\cf7 ~rhythmProbabilityMatrix\cf0 [0][1] = \cf7 ~rhythmProbabilityMatrix\cf0 [0][1]-0.01;\
+		\cf7 ~rhythmProbabilityMatrix\cf0 [0][2] = \cf7 ~rhythmProbabilityMatrix\cf0 [0][2]-0.01;\
+		\cf7 ~rhythmProbabilityMatrix\cf0 [0][3] = \cf7 ~rhythmProbabilityMatrix\cf0 [0][3]-0.01;\
+		\cf7 ~rhythmProbabilityMatrix\cf0 [0][4] = \cf7 ~rhythmProbabilityMatrix\cf0 [0][4]-0.01;\
+		\},\{\});\
+\};\
+\
+\
+\cf2 ///////////////////// function definition for harmonicProgression\cf0 \
+harmonicProgression = \{ \cf3 |x|\cf0 \
+	\cf3 var\cf0  current;\
+	1.do\{\cf3 |i|\cf0 \
+		current = \cf7 ~accMatrix\cf0 [x].windex;\
+		currentChordDegree = current;\
+	\};\
+	selectedChord = current;\
+\};\
+\
+\
+\cf2 ///////////////////// setting variables\cf0 \
+currentRhythmSet = rrand(0,3);\
+rhythmSetCounter[currentRhythmSet] = rhythmSetCounter[currentRhythmSet] + 1; \cf2 // quante volte abbiamo pescato da quell'insieme\cf0 \
+startingRhythm = rhythmMatrix[currentRhythmSet].choose;\
+beatCounter=0;\
+themeFlag=0;\
+themeMelodyArray=[];\
+themeChordArray=[];\
+themeRhythmArray=[];\
+themeActive = \cf5 false\cf0 ;\
+randomNote=0;\
+proxMod = 6;\
+currentChordDegree = [0,3,4].choose;\
+selectedChord = harmony[currentChordDegree];\
+chordNotes = selectedChord;\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\cf7 ~actualTones\cf0  = harmony[currentChordDegree];\
+accompanimentStream = \cf4 Pseq\cf0 (selectedChord, \cf5 inf\cf0 ).asStream; \cf2 // accompaniment\cf0 \
+relativeKeyN = \cf7 ~notes\cf0 .indexOf(key);\
+nextChord = \cf5 nil\cf0 ;\
+barsPreModCounter=0;\
+mod5=0;\
+mod4=0;\
+proxVeryHigh = 0.85;\
+proxHigh = 0.66;\
+proxMed = 0.33;\
+proxLow = 0.22;\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural
+\cf2 ///////////////////// accompaniment fellow\cf0 \
+accompanimentTask = \cf4 Task\cf0 (\{\
+	loop(\{\
+		beatCounter = beatCounter + 1;\
+		barsPreModCounter=barsPreModCounter+1;\
+		themeActive=\cf5 false\cf0 ;\
+		if (beatCounter == 1, \{currentChordDegree = [0,3,4].choose;\},\{\});\
+		if (beatCounter%8 == 0, \{currentChordDegree = 0\},\{\});\
+		if (beatCounter%8 == 7, \{currentChordDegree = 4\},\{\});\
+		\
+\
+\cf2 //////////////////////// REAL TIME SELECTION\cf0 \
+		\cf7 ~tempo\cf0  = 200*(bpm+0.1);\
+		\cf7 ~tempo\cf0  = 150;\
+		if(proximity>proxHigh,\{\
+			mode = \cf6 "Maj"\cf0 ;\
+			melodyDirection = \cf5 true\cf0 ; \cf2 // false -> basso\cf0 \
+			proxMod=3;\
+			leftHand = 3;\
+		\},\{\
+			mode = \cf6 "HMin"\cf0 ;\
+			melodyDirection = \cf5 false\cf0 ; \cf2 // false -> basso\cf0 \
+			proxMod = 7;\
+			leftHand = 2;\
+		\});\
+		\
+		if(proximity<proxMed,\{\
+			\cf3 var\cf0  tmp = proximity*(-20);\
+			leftHand = 1;\
+			randomNote = 12+tmp; \cf2 // va da 12 al peggio a 4\cf0 \
+		\},\{randomNote = 0\});\
+		\
+		if(proximity<proxLow,\{\
+			leftHand = 0;\
+		\},\{\});\
+		\
+		\
+		\cf2 // con una certa probabilita' ogni volta che peschi una nota la metti a caso: random(3,12)<=randomNote la metti a caso \cf0 \
+		\
+		case\{mode == \cf6 "HMin"\cf0 \}\{harmony = harmonyHMin;degree = degreeHMin\}\
+		\{mode == \cf6 "Maj"\cf0 \}\{harmony = harmonyMaj;degree = degreeMaj\};\
+		\
+		volRangeSolo = volume;\
+		volRangeAcc = volume;\
+\
+		\cf6 "volume: "\cf0 .post;\
+		volume.postln;\
+		\
+	\cf2 /// gestione modulazione\cf0 \
+\
+		if((barsPreModCounter>7).and(mod5==0).and(mod4==0).and(rrand(1,10)>proxMod).and((currentChordDegree == 0).or(currentChordDegree == 5)),\{\
+			\cf3 var\cf0  prob;\
+			prob = [4,5].wchoose([0.5,0.5]);	\cf2 // con uguale probabilita' modula in quarta o in quinta\cf0 \
+			case\{prob==5\}\{\
+					if(currentChordDegree == 0,\{\
+						nextChord = 5;\
+					\},\{\});\
+					if(currentChordDegree == 5,\{\
+						nextChord = [5,4].wchoose([0.70,0.30]);\
+					\},\{\});	\
+					\cf6 "modulazione di quinta"\cf0 .postln;\
+					mod5=1;	\
+					degreeMaj = [6,7,9,11,12,14,16,18,19,21,23,24,26,28,30,32,34];\
+					degreeHMin = [6,7,9,10,12,14,15,18,19,21,22,24,26,27,30,32,34];\
+					\cf2 // barsPreModCounter=0;\cf0 \
+				\}\{prob==4\}\{ 					\cf2 //vado al quarto grado\cf0 \
+					if(currentChordDegree==0,\{\
+						\cf6 "modulazione di quarta"\cf0 .postln;\
+						mod4 = 1;\
+						degreeMaj = [4,5,7,9,10,12,14,16,17,19,21,22,24,26,28,29,32];\
+						degreeHMin = [4,5,7,8,10,12,13,16,17,19,20,22,24,25,28,29,32];\
+						\cf2 //harmonyMaj=[[1,3,5],[2,4,6],[3,5,7],[4,6,8],[5,7,9],[6,8,10],[7,9,11]];\cf0 \
+						\cf2 //harmonyHMin=[[1,3,5],[2,4,6],[3,5,7],[4,6,8],[5,7,9],[6,8,10],[7,9,11]];\cf0 \
+						currentChordDegree = 5;\
+						nextChord = 0;\
+						\cf2 // barsPreModCounter = 0;\cf0 \
+					\},\{\});\
+				\}\
+			\},\{\});\
+			\
+		case\{mod5==1\}\{mod5 = 2;	\}\
+			\{mod5>1\}\{mod5 = mod5+1;\};\
+			\
+		case\{mod4==1\}\{mod4 = 2;	currentChordDegree = [4,1,6].wchoose([0.18,0.75,0.7])\}\
+			\{mod4>1\}\{mod4 = mod4+1;\};\
+			\
+		if((mod5>6).and(currentChordDegree==0),\{	\cf2 // condizione di terminazione della modulazione di quinta\cf0 \
+			mod5 = 0;\
+			\cf6 "modulazione di quinta terminata"\cf0 .postln;\
+			degreeMaj = [-1,0,2,4,5,7,9,11,12,14,16,17,19,21,23,24,26,28,29,31];\
+			degreeHMin = [-1,0,2,3,5,7,8,11,12,14,15,17,19,20,23,24,26,27,29,31];\
+			nextChord=0;\
+			barsPreModCounter=0;\
+			\},\{\});\
+				\
+		case\{nextChord==[0,3]\}\{currentChordDegree = 0; nextChord=3;\}\
+			\{nextChord==3\}\{currentChordDegree = [1,3].wchoose([0.25,0.75]); nextChord=\cf5 nil\cf0 ;\};\
+		\
+		if((mod4>6).and(currentChordDegree==0),\{	\cf2 // condizione di terminazione della modulazione di quarta\cf0 \
+			mod4 = 0;\
+			\cf6 "modulazione di quarta terminata"\cf0 .postln;\
+			degreeMaj = [-1,0,2,4,5,7,9,11,12,14,16,17,19,21,23,24,26,28,29,31];\
+			degreeHMin = [-1,0,2,3,5,7,8,11,12,14,15,17,19,20,23,24,26,27,29,31];\
+			nextChord=[0];\
+			barsPreModCounter=0;\
+		\},\{\});	\
+		case\{nextChord==[4,0]\}\{currentChordDegree = 4; nextChord=0;\}\
+			\{nextChord==0\}\{currentChordDegree = 0; nextChord=\cf5 nil\cf0 ;\};	\
+		chordNotes = harmony[currentChordDegree];\
+		\
+		\cf7 ~actualTones\cf0  = chordNotes;\
+		soloLine.(1);\
+		\
+		\cf2 // riseleziono il tema a caso\cf0 \
+		if ((proximity>proxMed).and(themeFlag==themeRhythm).and(rrand(0,6)>2),\{\
+			\cf2 // entro solo se il tema e'stato costruito\cf0 \
+			if (themeCounter==themeRhythm,\{\
+				\cf6 "THEME SELECTED"\cf0 .postln;\
+				themeCounter = 0;\
+				themeActive=\cf5 true\cf0 ;\
+				\},\{\});\
+			\},\{\});\
+		\
+		if((proximity>proxVeryHigh).and(themeFlag==themeRhythm),\{\
+			if (themeCounter==themeRhythm,\{\
+				\cf6 "THEME SELECTED"\cf0 .postln;\
+				themeCounter = 0;\
+				\},\{\});\
+		\},\{\});\
+	\
+		if ((themeCounter<themeRhythm),\{\
+			themeActive=\cf5 true\cf0 ;\
+			\cf6 "Theme bar number "\cf0 .post;\
+			(themeCounter+1).postln;\
+			melodyPattern = themeMelodyArray[themeCounter];\
+			chordNotes = themeChordArray[themeCounter];\
+			leftHand = 0;\
+			case\{themeCounter == 3\}\{leftHand = rrand(1,3);\}\
+			    \{themeCounter == 6\}\{leftHand = 3\}\
+			    \{themeCounter == 7\}\{leftHand = rrand(1,3);\};\
+			themeCounter = themeCounter +1;\
+			\},\{\});\
+		\cf6 ""\cf0 .postln;\
+		beatCounter.post;\
+		\cf6 "  Degree:"\cf0 .post; (currentChordDegree+1).post;\
+		\cf6 "  Chord:"\cf0 .post; \cf7 ~notes\cf0 [(degree[chordNotes]+relativeKeyN)%12].post;\
+		\cf6 "  Rhythm:"\cf0 .post; rhythmPattern.post;\
+		\
+		rhythmStream = \cf4 Pseq\cf0 (rhythmPattern, \cf5 inf\cf0 ).asStream;\
+		melodyStream = \cf4 Pseq\cf0 (melodyPattern, \cf5 inf\cf0 ).asStream;\
+		rhythmPatternLength = rhythmPattern.size.postln;\
+		\cf2 // actual pitch to be played (pretend we are in Maj Scale):\cf0 \
+		\cf2 // 60 is the central C, we just take the degree of the chosen pattern in the mapped mode\cf0 \
+		case\{leftHand==0\}\{\
+				m.noteOn(0, 47+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc); m.noteOn(16, (47+relativeKeyN+degree[chordNotes[1]]), 100*volRangeAcc);  m.noteOn(16, (47+relativeKeyN+degree[chordNotes[2]]), 100*volRangeAcc);\
+				(4*(60/\cf7 ~tempo\cf0 )).wait;\
+				m.noteOff(0, 47+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc); m.noteOff(16, (47+relativeKeyN+degree[chordNotes[1]]), 100*volRangeAcc); m.noteOff(16, (47+relativeKeyN+degree[chordNotes[2]]), 100*volRangeAcc);\
+				\
+			\}\
+\
+			\{leftHand==1\}\{\
+				m.noteOn(0, 35+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc);\
+				(3*(60/\cf7 ~tempo\cf0 )).wait;\
+\
+				2.do\{ \cf3 |i|\cf0 \
+					m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);\
+					(4*(60/(8*\cf7 ~tempo\cf0 ))).wait;\
+					m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);\
+				\};\
+\
+				m.noteOff(0, 35+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc);\
+			\}\
+			\
+			\{leftHand==2\}\{\
+				m.noteOn(0, 35+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc);\
+				(2*(60/\cf7 ~tempo\cf0 )).wait;\
+				2.do\{ \cf3 |i|\cf0 \
+					m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);\
+					(4*(60/(8*\cf7 ~tempo\cf0 ))).wait;\
+					m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);\
+				\};\
+				2.do\{ \cf3 |i|\cf0 \
+					m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);\
+					(4*(60/(8*\cf7 ~tempo\cf0 ))).wait;\
+					m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);\
+				\};\
+				m.noteOff(0, 35+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc);\
+			\}\
+\
+			\{leftHand==3\}\{\
+				m.noteOn(0, 35+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc);\
+				2.do\{ \cf3 |i|\cf0 \
+					m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);\
+					(4*(60/(8*\cf7 ~tempo\cf0 ))).wait;\
+					m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);\
+				\};\
+				2.do\{ \cf3 |i|\cf0 \
+					m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);\
+					(4*(60/(8*\cf7 ~tempo\cf0 ))).wait;\
+					m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);\
+				\};\
+				if ((rrand(0,1) > 0).and(0 == 0),\{\
+					2.do\{ \cf3 |i|\cf0 \
+						m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]+1], 80*volRangeAcc);\
+						(4*(60/(8*\cf7 ~tempo\cf0 ))).wait;\
+						m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]+1], 80*volRangeAcc);\
+					\};\
+				\},\{\
+					2.do\{ \cf3 |i|\cf0 \
+						m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);\
+						(4*(60/(8*\cf7 ~tempo\cf0 ))).wait;\
+						m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);\
+					\};\
+				\});\
+				2.do\{ \cf3 |i|\cf0 \
+					m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);\
+					(4*(60/(8*\cf7 ~tempo\cf0 ))).wait;\
+					m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);\
+				\};\
+				\
+				m.noteOff(0, 35+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc);\
+			\};\
+\
+		harmonicProgression.(currentChordDegree);\
+		rhythmSetCounter[currentRhythmSet] = rhythmSetCounter[currentRhythmSet] + 1;\
+		\cf6 ""\cf0 .postln;\
+\
+	\});\
+\});\
+\
+\
+\cf2 ///////////////////// solo fellow\cf0 \
+melodyTask = \cf4 Task\cf0 (\{\
+	loop(\{\cf3 arg\cf0  tmpVel;\
+		\cf3 var\cf0  tmpPitch = melodyStream.value;\
+		\cf3 var\cf0  tmpLength = rhythmStream.value; \cf2 // controllo sui BPM\cf0 \
+		\cf3 var\cf0  voiceTranspose;\
+\cf2 //		"".postln;\cf0 \
+\cf2 //		tmpLength.post;\cf0 \
+		tmpLength = (60/\cf7 ~tempo\cf0 )*tmpLength;\
+		rhythmPatternLength = (rhythmPatternLength-1).post;\
+		\cf6 " "\cf0 .post;\
+		\cf2 // actual pitch to be played (pretend we are in Maj Scale):\cf0 \
+		\cf2 // 60 is the central C, we just take the degree of the chosen pattern in the mapped mode\cf0 \
+		absolutePitch = 59+relativeKeyN+degree[tmpPitch];\
+		voiceTranspose = 59+relativeKeyN+degree[tmpPitch+2]; \cf2 // la seconda voce, leggermente sfasata, va sopra di un intervallo di seconda nei temi\cf0 \
+		\
+		\
+		if(rrand(4,12) <= randomNote,\{\
+			absolutePitch = absolutePitch + rrand(-1*randomNote,1*randomNote)\},\{\}\
+		);\
+	\
+		tmpVel = rrand(90,120)*volRangeSolo;\
+\
+		if(rhythmPatternLength>=0,\{\
+			delay = 0.03;\
+			m.noteOn(1, absolutePitch, tmpVel);\
+			delay.wait;\
+			if(themeActive,\{m.noteOn(2, voiceTranspose, tmpVel)\},\{m.noteOn(2, absolutePitch, tmpVel)\});\
+			\cf2 //m.noteOn(2, absolutePitch, tmpVel);\cf0 \
+			(tmpLength-delay).wait;\
+			m.noteOff(1, absolutePitch, tmpVel);\
+			\cf2 //0.01.wait;\cf0 \
+			if(themeActive,\{m.noteOff(2, voiceTranspose, tmpVel)\},\{m.noteOff(2, absolutePitch, tmpVel)\});\
+			\cf2 //m.noteOff(2, absolutePitch, tmpVel);\cf0 \
+		\},\{\
+			wait(0.01);\
+		\});\
+	\});\
+\});\
+\
+startingTask = \cf4 Task\cf0 (\{\
+	loop(\{\
+		if(starta==1,\{\
+			\cf6 "start: "\cf0 .post;\
+			starta.postln;\
+			accompanimentTask.start;\
+			melodyTask.start;\
+			starta = 0;\
+		\},\{\});\
+		wait(0.1);\
+	\});\
+\});\
+\
+soloLine.(1);\
+rhythmStream = \cf4 Pseq\cf0 (rhythmPattern, \cf5 inf\cf0 ).asStream;\
+melodyStream = \cf4 Pseq\cf0 (melodyPattern, \cf5 inf\cf0 ).asStream;\
+\
+startingTask.start;\
+\
+)}

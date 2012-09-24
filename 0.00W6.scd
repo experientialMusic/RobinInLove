@@ -28,13 +28,13 @@
 
 (
 
-var accompanimentTask, melodyTask, melody2Task;
+var accompanimentTask, melodyTask, melody2Task, startingTask;
 var melodyStream, rhythmStream, accompanimentStream;
 var melodyPattern, rhythmPattern, rhythmPatternLength, currentChordDegree, chordNotes, nextChord, currentRhythmSet, rhythmSetCounter;
 var mode, beatCounter, melodyDirection, rhythmMatrix, selectedChord, degree, degreeMaj, degreeHMin, harmony, harmonyHMin, harmonyMaj, startingRhythm, key, relativeKeyN;
 var mod5, mod4, barsPreModCounter;
 var themeMelody, themeChord, themeFlag, themeCounter, themeChordArray, themeMelodyArray, themeRhythmArray, themeRhythm, themeActive; // theme management
-var o1, o2, o3, o4, o5, o6, o7, melodyRange, varDissonance, dissonanceRhythm, dissonanceControl; // OSC
+var o1, o2, o3, o4, o5, o6, o7, melodyRange, varDissonance, dissonanceRhythm, dissonanceControl, starta; // OSC
 var proxVeryHigh, proxHigh, proxMed, proxLow; // proximity management
 var soloLine, harmonicProgression, rhythmAdjustment, leftHand, delay, absolutePitch;
 var proximity, volume, bpm, other, smooth, proxMod;
@@ -52,17 +52,21 @@ o1 = OSCresponderNode(nil, "/distance", {
 	|t, r, mesg|
 	proximity = mesg[1];
 	//tmp.postln;
-	"proximity: ".postln;
+	"".postln;
+	"proximity: ".post;
 	proximity.postln;
-	volume = (proximity/3)+0.5;
+	// volume = (proximity/3)+0.5;
 	bpm = (proximity/4)+0.4;
+	"bpm: ".post;
+	bpm.postln;
 }).add;
 
-
-o3 = OSCresponderNode(nil, "/prox", {
+o2 = OSCresponderNode(nil, "/start", {
 	|t, r, mesg|
-	proximity = mesg[1];
+	starta = mesg[1];
 }).add;
+
+
 o4 = OSCresponderNode(nil, "/volume", {
 	|t, r, mesg|
 	volume = mesg[1]; //work on the difference between the 2 guys
@@ -331,23 +335,23 @@ accompanimentTask = Task({
 			melodyDirection = true; // false -> basso
 			proxMod=3;
 			leftHand = 3;
-			},{
+		},{
 			mode = "HMin";
 			melodyDirection = false; // false -> basso
 			proxMod = 7;
 			leftHand = 2;
 		});
 		
-		if(proximity<proxLow,{
-			leftHand = 0;
-			
-		},{});
-		
 		if(proximity<proxMed,{
 			var tmp = proximity*(-20);
 			leftHand = 1;
 			randomNote = 12+tmp; // va da 12 al peggio a 4
 		},{randomNote = 0});
+		
+		if(proximity<proxLow,{
+			leftHand = 0;
+		},{});
+		
 		
 		// con una certa probabilita' ogni volta che peschi una nota la metti a caso: random(3,12)<=randomNote la metti a caso 
 		
@@ -357,7 +361,9 @@ accompanimentTask = Task({
 		volRangeSolo = volume;
 		volRangeAcc = volume;
 
-
+		"volume: ".post;
+		volume.postln;
+		
 	/// gestione modulazione
 
 		if((barsPreModCounter>7).and(mod5==0).and(mod4==0).and(rrand(1,10)>proxMod).and((currentChordDegree == 0).or(currentChordDegree == 5)),{
@@ -563,7 +569,7 @@ melodyTask = Task({
 		);
 	
 		tmpVel = rrand(90,120)*volRangeSolo;
-		
+
 		if(rhythmPatternLength>=0,{
 			delay = 0.03;
 			m.noteOn(1, absolutePitch, tmpVel);
@@ -581,11 +587,23 @@ melodyTask = Task({
 	});
 });
 
+startingTask = Task({
+	loop({
+		if(starta==1,{
+			"start: ".post;
+			starta.postln;
+			accompanimentTask.start;
+			melodyTask.start;
+			starta = 0;
+		},{});
+		wait(0.1);
+	});
+});
 
 soloLine.(1);
 rhythmStream = Pseq(rhythmPattern, inf).asStream;
 melodyStream = Pseq(melodyPattern, inf).asStream;
 
-accompanimentTask.start;
-melodyTask.start;
+startingTask.start;
+
 )
