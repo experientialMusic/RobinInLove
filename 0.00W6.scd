@@ -1,5 +1,5 @@
 
-///////////////////// TO DO
+///////////////////// TO DO 
 //	- fade in all'inizio (fabio)
 //	- ripetere lo stesso pattern con una certa probabilita' (fabio)
 //	- non deve modulare in mezzo al tema oppure mettiamo i gradi nell'array del tema (fabio)
