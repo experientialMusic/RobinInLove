@@ -37,7 +37,7 @@ var themeMelody, themeChord, themeFlag, themeCounter, themeChordArray, themeMelo
 var o1, o2, o3, o4, o5, o6, o7, melodyRange, varDissonance, dissonanceRhythm, dissonanceControl; // OSC
 var proxVeryHigh, proxHigh, proxMed, proxLow; // proximity management
 var soloLine, harmonicProgression, rhythmAdjustment, leftHand, delay, absolutePitch;
-var proximity, heart, skin, other, smooth, proxMod;
+var proximity, volume, bpm, other, smooth, proxMod;
 var volRangeSolo, volRangeAcc;
 var randomNote; //variabili per proximity;
 
@@ -54,8 +54,8 @@ o1 = OSCresponderNode(nil, "/distance", {
 	//tmp.postln;
 	"proximity: ".postln;
 	proximity.postln;
-	heart = (proximity/3)+0.5;
-	skin = (proximity/4)+0.4;
+	volume = (proximity/3)+0.5;
+	bpm = (proximity/4)+0.4;
 }).add;
 
 
@@ -63,13 +63,13 @@ o3 = OSCresponderNode(nil, "/prox", {
 	|t, r, mesg|
 	proximity = mesg[1];
 }).add;
-o4 = OSCresponderNode(nil, "/heart", {
+o4 = OSCresponderNode(nil, "/volume", {
 	|t, r, mesg|
-	heart = mesg[1]; //work on the difference between the 2 guys
+	volume = mesg[1]; //work on the difference between the 2 guys
 }).add;
-o5 = OSCresponderNode(nil, "/skin", {
+o5 = OSCresponderNode(nil, "/bpm", {
 	|t, r, mesg|
-	skin = mesg[1];
+	bpm = mesg[1];
 }).add;
 o6 = OSCresponderNode(nil, "/smooth", {
 	|t, r, mesg|
@@ -82,9 +82,9 @@ o7 = OSCresponderNode(nil, "/other", {
 
 /////////////////////  getting values
 
-heart = 0.5;		// tace finche'non entrano i soggetti 
+volume = 0.5;		// tace finche'non entrano i soggetti 
 proximity = 0.5;	// dissonanza, modo, ottava
-skin = 0.5;
+bpm = 0.5;
 
 // fino a 0.7 maggiore
 // 0.4 - 0.7 minore
@@ -94,7 +94,7 @@ skin = 0.5;
 ///////////////////// Mode | BPM
 
 mode = "Maj"; // Maj
-~tempo = 150*skin;
+~tempo = 150*bpm;
 melodyDirection = true; // false -> basso
 leftHand = 0; // quarti=0, funereo=1, triste=2, medio=3 
 
@@ -307,10 +307,10 @@ nextChord = nil;
 barsPreModCounter=0;
 mod5=0;
 mod4=0;
-proxVeryHigh = 0.7;
-proxHigh = 0.5;
-proxMed = 0.3;
-proxLow = 0.2;
+proxVeryHigh = 0.85;
+proxHigh = 0.66;
+proxMed = 0.33;
+proxLow = 0.22;
 
 ///////////////////// accompaniment fellow
 accompanimentTask = Task({
@@ -324,7 +324,7 @@ accompanimentTask = Task({
 		
 
 //////////////////////// REAL TIME SELECTION
-		~tempo = 200*(skin+0.1);
+		~tempo = 200*(bpm+0.1);
 		~tempo = 150;
 		if(proximity>proxHigh,{
 			mode = "Maj";
@@ -340,10 +340,12 @@ accompanimentTask = Task({
 		
 		if(proximity<proxLow,{
 			leftHand = 0;
+			
 		},{});
 		
 		if(proximity<proxMed,{
 			var tmp = proximity*(-20);
+			leftHand = 1;
 			randomNote = 12+tmp; // va da 12 al peggio a 4
 		},{randomNote = 0});
 		
@@ -352,8 +354,8 @@ accompanimentTask = Task({
 		case{mode == "HMin"}{harmony = harmonyHMin;degree = degreeHMin}
 		{mode == "Maj"}{harmony = harmonyMaj;degree = degreeMaj};
 		
-		volRangeSolo = heart;
-		volRangeAcc = heart;
+		volRangeSolo = volume;
+		volRangeAcc = volume;
 
 
 	/// gestione modulazione
@@ -422,7 +424,7 @@ accompanimentTask = Task({
 		soloLine.(1);
 		
 		// riseleziono il tema a caso
-		if ((proximity>proxMed).and(themeFlag==themeRhythm).and(rrand(0,6)>4),{
+		if ((proximity>proxMed).and(themeFlag==themeRhythm).and(rrand(0,6)>2),{
 			// entro solo se il tema e'stato costruito
 			if (themeCounter==themeRhythm,{
 				"THEME SELECTED".postln;
