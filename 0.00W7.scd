@@ -39,6 +39,8 @@ var soloLine, harmonicProgression, rhythmAdjustment, leftHand, delay, absolutePi
 var proximity, volume, bpm, other, smooth, proxMod;
 var volRangeSolo, volRangeAcc;
 var randomNote; //variabili per proximity;
+var rhythmRepete;
+
 
 MIDIClient.init(0,1,2); // initialize the MIDI client:	
 m = MIDIOut(0, MIDIClient.destinations.at(0).uid); // create a MIDI out connection:
@@ -54,7 +56,7 @@ o1 = OSCresponderNode(nil, "/distance", {
 	"proximity: ".post;
 	proximity.postln;
 	volume = (proximity/3)+0.5;
-	bpm = (proximity/2)+0.4;
+	bpm = (proximity/2)+0.4;   
 }).add;
 
 o2 = OSCresponderNode(nil, "/velocity", {
@@ -74,7 +76,7 @@ o3 = OSCresponderNode(nil, "/start", {
 volume = 0.5;		// tace finche'non entrano i soggetti 
 proximity = 0.5;	// dissonanza, modo, ottava
 bpm = 0.7;
-
+rhythmRepete = 0;
 // fino a 0.7 maggiore
 // 0.4 - 0.7 minore
 // 0/0.1 - 0.1/0.2 - 0.2/0.4 dissonanze
@@ -409,7 +411,15 @@ accompanimentTask = Task({
 
 		~actualTones = chordNotes;
 		soloLine.(1);
-		if (rrand(1,3)==1, {rhythmPattern = rhythmPatternBackup; "ripeto".postln;},{}); // con qualche probabilita'ripesco
+		if ((rrand(1,3) + rhythmRepete) > 2,{ 
+			rhythmPattern = rhythmPatternBackup; 
+			"ripeto".postln;
+			rhythmRepete = rhythmRepete + 1;
+			if(rhythmRepete==3,{rhythmRepete = 0;}
+			,{});
+		},{}); // con qualche probabilita'ripesco
+		
+		
 		// riseleziono il tema a caso
 		if ((proximity>proxMed).and(themeFlag==themeRhythm).and(rrand(0,6)>4),{
 			// entro solo se il tema e'stato costruito
