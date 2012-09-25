@@ -9,7 +9,7 @@ import netP5.*;
   
 OscP5 oscP5;
 NetAddress myRemoteLocation, sendTo;
-String distance;
+String distance, velocity;
 float tempo = 0;
 int maxDistance = 780;
 int minDistance = 50;
@@ -20,6 +20,7 @@ void setup() {
   /* start oscP5, listening for incoming messages at port 12000 */
   oscP5 = new OscP5(this,5103);
   distance = "0";
+  velocity = "0.5";
   
   /* myRemoteLocation is a NetAddress. a NetAddress takes 2 parameters,
    * an ip address and a port number. myRemoteLocation is used as parameter in
@@ -38,10 +39,13 @@ void draw() {
   /* send the message */
   if ((millis()-tempo)>1000){
     // distanceGrowth();
-    OscMessage myMessage = new OscMessage("/distance"); 
+    OscMessage myMessage = new OscMessage("/distance");
+    OscMessage myMessageVelocity = new OscMessage("/velocity");    
     myMessage.add(float(distance));
-    println(distance);
+    myMessageVelocity.add(float(velocity));
+    println(velocity);
     oscP5.send(myMessage, sendTo); 
+    oscP5.send(myMessageVelocity, sendTo);
     tempo = millis();
   };
   if(keyPressed){

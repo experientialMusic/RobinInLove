@@ -57,9 +57,10 @@ o1 = OSCresponderNode(nil, "/distance", {
 	bpm = (proximity/2)+0.4;
 }).add;
 
-o2 = OSCresponderNode(nil, "/volume", {
+o2 = OSCresponderNode(nil, "/velocity", {
 	|t, r, mesg|
-	volume = mesg[1]; //work on the difference between the 2 guys
+	var tmp = mesg[1];
+	//volume = tmp;
 }).add;
 
 o3 = OSCresponderNode(nil, "/start", {
