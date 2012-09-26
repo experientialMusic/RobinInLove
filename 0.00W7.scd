@@ -33,7 +33,7 @@ var melodyPattern, rhythmPattern, rhythmPatternBackup, rhythmPatternLength, curr
 var mode, beatCounter, melodyDirection, rhythmMatrix, selectedChord, degree, degreeMaj, degreeHMin, harmony, harmonyHMin, harmonyMaj, startingRhythm, key, relativeKeyN;
 var mod5, mod4, barsPreModCounter;
 var themeMelody, themeChord, themeFlag, themeCounter, themeChordArray, themeMelodyArray, themeRhythmArray, themeRhythm, themeActive; // theme management
-var o1, o2, o3, starta, melodyRange, varDissonance, dissonanceRhythm, dissonanceControl; // OSC
+var o1, o2, o3, starta, fermoStart, melodyRange, varDissonance, dissonanceRhythm, dissonanceControl; // OSC
 var proxVeryHigh, proxHigh, proxMed, proxLow; // proximity management
 var soloLine, harmonicProgression, rhythmAdjustment, leftHand, delay, absolutePitch;
 var proximity, volume, bpm, other, smooth, proxMod;
@@ -52,17 +52,20 @@ m.connect(1);// and connect SC's first port to your device's port with for examp
 o1 = OSCresponderNode(nil, "/distance", {
 	|t, r, mesg|
 	proximity = mesg[1];
-	//tmp.postln;
+	// tmp.postln;
 	"proximity: ".post;
 	proximity.postln;
-	volume = (proximity/3)+0.5;
+	// volume = (proximity/3)+0.5;
 	bpm = (proximity/2)+0.4;   
 }).add;
 
-o2 = OSCresponderNode(nil, "/velocity", {
+o2 = OSCresponderNode(nil, "/speed", {
 	|t, r, mesg|
 	var tmp = mesg[1];
-	//volume = tmp;
+	volume = 0.5+(tmp/2);
+	// bpm = (tmp*proximity)+0.5;
+	"velocity: ".post;
+	volume.postln;
 }).add;
 
 o3 = OSCresponderNode(nil, "/start", {
@@ -73,10 +76,11 @@ o3 = OSCresponderNode(nil, "/start", {
 
 /////////////////////  getting values
 
-volume = 0.5;		// tace finche'non entrano i soggetti 
+// volume = 0.5;		// tace finche'non entrano i soggetti 
 proximity = 0.5;	// dissonanza, modo, ottava
 bpm = 0.7;
 rhythmRepete = 0;
+fermoStart = 0;
 // fino a 0.7 maggiore
 // 0.4 - 0.7 minore
 // 0/0.1 - 0.1/0.2 - 0.2/0.4 dissonanze
@@ -151,8 +155,8 @@ rhythmMatrix = [
 
 dissonanceRhythm = [
 	[[2, 0.3, 0.7, 1], [1, 1.1, 1.9, 0.5, 0.5], [0.1,1.1,2.2,0.6], [0.2, 0.8, 0.8, 1, 0.2, 0.7, 0.3], [1,0.2,1,0.8], [1, 1, 0.5, 0.4, 1.1], [1.5, 0.7, 0.3, 0.5, 0.3, 0.7]],
-	[[0.8, 0.2, 0.3, 0.7, 0.6, 1.4], [4], [1, 0.8, 3, 0.2], [0.5, 1, 0.3, 1.7, 0.5], [0.5, 1.4, 0.6, 0.5, 0.7, 0.3], [0.6, 1.4, 0.8, 1.2], [0.5, 0.8, 0.7, 1.2, 0.5, 0.3]],
-	[[0.3, 0.4, 1.2, 0.6, 0.8, 0.7], [4], [0.3, 3.7], [2.8, 1.2], [0.8, 0.3, 2, 0.7, 0.2], [2,1,1], [0.3, 1.8, 0.3, 0.2, 0.7, 0.7], [0.4, 3.1, 0.5], [1.2,1,0.2,1.1,0.5], [0.2, 0.3, 0.8, 0.5, 0.7, 0.5, 0.2, 0.8]]
+	[[0.8, 0.2, 0.3, 0.7, 0.6, 1.4], [1, 0.8, 3, 0.2], [0.5, 1, 0.3, 1.7, 0.5], [0.5, 1.4, 0.6, 0.5, 0.7, 0.3], [0.6, 1.4, 0.8, 1.2], [0.5, 0.8, 0.7, 1.2, 0.5, 0.3]],
+	[[0.3, 0.4, 1.2, 0.6, 0.8, 0.7], [0.7, 3.3], [2.8, 1.2], [0.8, 0.3, 2, 0.7, 0.2], [2,1,1], [0.3, 1.8, 0.3, 0.2, 0.7, 0.7], [0.4, 3.1, 0.5], [1.2,1,0.2,1.1,0.5], [0.2, 0.3, 0.8, 0.5, 0.7, 0.5, 0.2, 0.8]]
 	];
 
 
@@ -582,12 +586,13 @@ melodyTask = Task({
 
 startingTask = Task({
 	loop({
-		if(starta==1,{
+		if((starta==1).and(fermoStart==0),{
 			"start: ".post;
 			starta.postln;
 			accompanimentTask.start;
 			melodyTask.start;
 			starta = 0;
+			fermoStart = 1;
 		},{});
 		wait(0.1);
 	});

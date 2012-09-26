@@ -19,7 +19,7 @@ void setup() {
   frameRate(25);
   /* start oscP5, listening for incoming messages at port 12000 */
   oscP5 = new OscP5(this,5103);
-  distance = "0";
+  distance = "0.5";
   velocity = "0.5";
   
   /* myRemoteLocation is a NetAddress. a NetAddress takes 2 parameters,
@@ -38,23 +38,21 @@ void draw() {
   background(0);
   /* send the message */
   if ((millis()-tempo)>1000){
-<<<<<<< HEAD
-    // distanceGrowth();
+    //distanceGrowth();
+    //speedChange();
     OscMessage myMessage = new OscMessage("/distance");
-    OscMessage myMessageVelocity = new OscMessage("/velocity");    
-=======
-    distanceGrowth();
-    OscMessage myMessage = new OscMessage("/distance"); 
->>>>>>> DynamicRepet
+    OscMessage myMessageVelocity = new OscMessage("/speed");    
     myMessage.add(float(distance));
     myMessageVelocity.add(float(velocity));
-    println(velocity);
+    print("speed "); println(velocity);
+    print("distance "); println(distance);
+    //print("distance"); println(distance);
     oscP5.send(myMessage, sendTo); 
     oscP5.send(myMessageVelocity, sendTo);
     tempo = millis();
   };
   if(keyPressed){
-    OscMessage myMessage2 = new OscMessage("/start"); 
+    OscMessage myMessage2 = new OscMessage("/start");
     myMessage2.add(1);
     oscP5.send(myMessage2, sendTo); 
   }
@@ -64,7 +62,22 @@ void draw() {
 void oscEvent(OscMessage theOscMessage){
   /* print the address pattern and the typetag of the received OscMessage */
   Object[] received = theOscMessage.arguments();
-  distance = received[0].toString();
+ 
+  if(theOscMessage.checkAddrPattern("/speed")==true) {
+    velocity = received[0].toString();
+  }
+  
+  if(theOscMessage.checkAddrPattern("/distance")==true) {
+    distance = received[0].toString();
+  }
+  
+  if(theOscMessage.checkAddrPattern("/control")==true) {
+      OscMessage myMessage2 = new OscMessage("/start");
+      myMessage2.add(1);
+      oscP5.send(myMessage2, sendTo); 
+  }
+
+
   // println(distance);
 //  print("### received an osc message.");
 //  print(" addrpattern: "+theOscMessage.addrPattern());
@@ -83,4 +96,8 @@ float mapDistance(String distance){
 
 void distanceGrowth(){
   distance = str((float(distance)+0.05)%1);
+}
+
+void speedChange(){
+  velocity = str((float(distance)+random(5)/5)%1);
 }
