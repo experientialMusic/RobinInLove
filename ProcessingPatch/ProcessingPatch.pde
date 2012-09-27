@@ -1,9 +1,3 @@
-/**
- * oscP5sendreceive by andreas schlegel
- * example shows how to send and receive osc messages.
- * oscP5 website at http://www.sojamo.de/oscP5
- */
- 
 import oscP5.*;
 import netP5.*;
   
@@ -38,8 +32,8 @@ void draw() {
   background(0);
   /* send the message */
   if ((millis()-tempo)>1000){
-    //distanceGrowth();
-    //speedChange();
+    distanceGrowth();
+    speedChange();
     OscMessage myMessage = new OscMessage("/distance");
     OscMessage myMessageVelocity = new OscMessage("/speed");    
     myMessage.add(float(distance));
@@ -95,9 +89,9 @@ float mapDistance(String distance){
 }
 
 void distanceGrowth(){
-  distance = str((float(distance)+0.05)%1);
+  distance = str((float(distance)+0.03)%1);
 }
 
 void speedChange(){
-  velocity = str((float(distance)+random(5)/5)%1);
+  velocity = str((float(velocity)+0.009)%1);
 }

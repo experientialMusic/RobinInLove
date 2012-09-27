@@ -53,18 +53,17 @@ o1 = OSCresponderNode(nil, "/distance", {
 	|t, r, mesg|
 	proximity = mesg[1];
 	// tmp.postln;
-	"proximity: ".post;
-	proximity.postln;
+	"P: ".post;
+	proximity.post;
 	// volume = (proximity/3)+0.5;
-	bpm = (proximity/2)+0.4;   
 }).add;
 
 o2 = OSCresponderNode(nil, "/speed", {
 	|t, r, mesg|
 	var tmp = mesg[1];
-	volume = 0.5+(tmp/2);
-	// bpm = (tmp*proximity)+0.5;
-	"velocity: ".post;
+	volume = 0.5+(tmp*0.5);  // il volume varia tra 0.3 e 1
+	bpm = (proximity*0.6)+(tmp*0.2)+0.4;   
+	"  V: ".post;
 	volume.postln;
 }).add;
 
@@ -76,7 +75,7 @@ o3 = OSCresponderNode(nil, "/start", {
 
 /////////////////////  getting values
 
-// volume = 0.5;		// tace finche'non entrano i soggetti 
+volume = 0.5;		// tace finche'non entrano i soggetti 
 proximity = 0.5;	// dissonanza, modo, ottava
 bpm = 0.7;
 rhythmRepete = 0;
@@ -142,21 +141,21 @@ case{mode == "HMin"}{harmony = harmonyHMin;degree = degreeHMin}
 rhythmSetCounter = [0,0,0,0,0,0,0];	// conteggio quante volte abbiamo pescato dai vari insiemi di lunghezze
 
 rhythmMatrix = [
-		[[2, 1, 1], [2, 1, 0.5, 0.5], [2, 0.5, 1, 0.5], [2, 0.5, 0.5, 1], [2, 0.5, 0.5, 0.5, 0.5], [4], [3, 0.5, 0.5], [3, 1], [1,1,2]], // inzio in liberta'
+		[[2, 1, 1], [2, 1, 0.5, 0.5], [2, 0.5, 1, 0.5], [2, 0.5, 0.5, 1], [2, 0.5, 0.5, 0.5, 0.5], [3, 0.5, 0.5], [3, 1], [1,1,2]], // inzio in liberta'
 
 		[[1, 1, 1, 0.5, 0.5], [1, 1, 0.5, 1, 0.5], [1, 1, 0.5, 0.5, 1], [1, 1, 0.5, 0.5, 0.5, 0.5]], // primi due: quarti
 		[[0.5, 0.5, 0.5, 0.5, 1, 0.5, 0.5], [0.5, 0.5, 0.5, 0.5, 0.5, 1, 0.5], [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1], [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]], // primi due: ottavi		
 		[[1.5, 0.5, 1, 1], [1.5, 0.5, 1, 0.5, 0.5], [1.5, 0.5, 0.5, 1, 0.5], [1.5, 0.5, 0.5, 0.5, 1], [1.5, 0.5, 0.5, 0.5, 0.5, 0.5], [1.5, 0.5, 1.5, 0.5], [1.5, 0.5, 0.5, 1, 0.5]], // puntati 1.5-0.5 
 		[[0.5, 1, 0.5,1, 1], [0.5, 1, 0.5,1, 0.5, 0.5], [0.5, 1, 0.5,0.5, 1, 0.5], [0.5, 1, 0.5,0.5, 0.5, 1], [0.5, 1, 0.5,0.5, 0.5, 0.5, 0.5], [0.5, 1, 0.5,1.5, 0.5], [0.5, 1, 0.5,0.5, 1, 0.5], [1, 1, 0.5, 1, 0.5],[0.5, 0.5, 0.5, 0.5, 0.5, 1, 0.5]], // sincope
 
-		[[4],[2,2],[1,1,2]], // finale a
+		[[2,2],[1,1,2]], // finale a
 		[[1,0.5,0.5,2],[0.5,1,0.5,2],[0.5,0.5,0.5,0.5,2],[1,1,2]] // finale b
 		];
 
 dissonanceRhythm = [
 	[[2, 0.3, 0.7, 1], [1, 1.1, 1.9, 0.5, 0.5], [0.1,1.1,2.2,0.6], [0.2, 0.8, 0.8, 1, 0.2, 0.7, 0.3], [1,0.2,1,0.8], [1, 1, 0.5, 0.4, 1.1], [1.5, 0.7, 0.3, 0.5, 0.3, 0.7]],
 	[[0.8, 0.2, 0.3, 0.7, 0.6, 1.4], [1, 0.8, 3, 0.2], [0.5, 1, 0.3, 1.7, 0.5], [0.5, 1.4, 0.6, 0.5, 0.7, 0.3], [0.6, 1.4, 0.8, 1.2], [0.5, 0.8, 0.7, 1.2, 0.5, 0.3]],
-	[[0.3, 0.4, 1.2, 0.6, 0.8, 0.7], [0.7, 3.3], [2.8, 1.2], [0.8, 0.3, 2, 0.7, 0.2], [2,1,1], [0.3, 1.8, 0.3, 0.2, 0.7, 0.7], [0.4, 3.1, 0.5], [1.2,1,0.2,1.1,0.5], [0.2, 0.3, 0.8, 0.5, 0.7, 0.5, 0.2, 0.8]]
+	[[0.3, 0.4, 1.2, 0.6, 0.8, 0.7], [0.7, 1.3, 2], [2.8, 1.2], [0.8, 0.3, 2, 0.7, 0.2], [2,1,1], [0.3, 1.8, 0.3, 0.2, 0.7, 0.7], [0.4, 2.1, 0.5, 1], [1.2,1,0.2,1.1,0.5], [0.2, 0.3, 0.8, 0.5, 0.7, 0.5, 0.2, 0.8]]
 	];
 
 
@@ -415,7 +414,7 @@ accompanimentTask = Task({
 
 		~actualTones = chordNotes;
 		soloLine.(1);
-		if ((rrand(1,3) + rhythmRepete) > 2,{ 
+		if (((rrand(1,3) + rhythmRepete) > 2).and(beatCounter>5),{ 
 			rhythmPattern = rhythmPatternBackup; 
 			"ripeto".postln;
 			rhythmRepete = rhythmRepete + 1;
@@ -550,6 +549,10 @@ melodyTask = Task({
 		var tmpPitch = melodyStream.value;
 		var tmpLength = rhythmStream.value; // controllo sui BPM
 		var voiceTranspose;
+		
+		volRangeSolo = volume;
+		volRangeAcc = volume;
+		
 //		"".postln;
 //		tmpLength.post;
 		tmpLength = (60/~tempo)*tmpLength;
