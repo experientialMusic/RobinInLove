@@ -32,8 +32,8 @@ void draw() {
   background(0);
   /* send the message */
   if ((millis()-tempo)>1000){
-    distanceGrowth();
-    speedChange();
+    //distanceGrowth();
+    //speedChange();
     OscMessage myMessage = new OscMessage("/distance");
     OscMessage myMessageVelocity = new OscMessage("/speed");    
     myMessage.add(float(distance));

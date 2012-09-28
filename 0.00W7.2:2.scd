@@ -77,7 +77,7 @@ o3 = OSCresponderNode(nil, "/start", {
 
 volume = 0.5;		// tace finche'non entrano i soggetti 
 proximity = 0.5;	// dissonanza, modo, ottava
-bpm = 0.7;
+bpm = 0.5;
 rhythmRepete = 0;
 fermoStart = 0;
 // fino a 0.7 maggiore
@@ -88,7 +88,7 @@ fermoStart = 0;
 ///////////////////// Mode | BPM
 
 mode = "Maj"; // Maj
-~tempo = 180*bpm;
+~tempo = 100*bpm;
 melodyDirection = true; // false -> basso
 leftHand = 0; // quarti=0, funereo=1, triste=2, medio=3 
 
@@ -99,7 +99,7 @@ key = ['A', 'B','C','C#','D','Eb','E','F','Gb','G','Ab'].choose.postln;
 melodyRange = 0; // pitch range e'8 o 0
 varDissonance = 0; // da 0 a 4
 // themeRhythm = (rrand(0,1)+1)*4; // 4 o 8
-themeRhythm = 4;
+themeRhythm = 8;
 "Lunghezza tema: ".post;
 themeRhythm.postln;
 themeCounter = themeRhythm;
@@ -141,21 +141,21 @@ case{mode == "HMin"}{harmony = harmonyHMin;degree = degreeHMin}
 rhythmSetCounter = [0,0,0,0,0,0,0];	// conteggio quante volte abbiamo pescato dai vari insiemi di lunghezze
 
 rhythmMatrix = [
-		[[2, 1, 1], [2, 1, 0.5, 0.5], [2, 0.5, 1, 0.5], [2, 0.5, 0.5, 1], [2, 0.5, 0.5, 0.5, 0.5], [3, 0.5, 0.5], [3, 1], [1,1,2]], // inzio in liberta'
+		[[2], [1, 1], [0.5, 1, 0.5], [0.5, 0.5, 1], [0.5, 0.5, 0.5, 0.5], [1, 0.5, 0.5]], // inzio in liberta'
 
-		[[1, 1, 1, 0.5, 0.5], [1, 1, 0.5, 1, 0.5], [1, 1, 0.5, 0.5, 1], [1, 1, 0.5, 0.5, 0.5, 0.5]], // primi due: quarti
-		[[0.5, 0.5, 0.5, 0.5, 1, 0.5, 0.5], [0.5, 0.5, 0.5, 0.5, 0.5, 1, 0.5], [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1], [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]], // primi due: ottavi		
-		[[1.5, 0.5, 1, 1], [1.5, 0.5, 1, 0.5, 0.5], [1.5, 0.5, 0.5, 1, 0.5], [1.5, 0.5, 0.5, 0.5, 1], [1.5, 0.5, 0.5, 0.5, 0.5, 0.5], [1.5, 0.5, 1.5, 0.5], [1.5, 0.5, 0.5, 1, 0.5]], // puntati 1.5-0.5 
-		[[0.5, 1, 0.5,1, 1], [0.5, 1, 0.5,1, 0.5, 0.5], [0.5, 1, 0.5,0.5, 1, 0.5], [0.5, 1, 0.5,0.5, 0.5, 1], [0.5, 1, 0.5,0.5, 0.5, 0.5, 0.5], [0.5, 1, 0.5,1.5, 0.5], [0.5, 1, 0.5,0.5, 1, 0.5], [1, 1, 0.5, 1, 0.5],[0.5, 0.5, 0.5, 0.5, 0.5, 1, 0.5]], // sincope
+		[[2], [1, 1], [0.5, 1, 0.5], [0.5, 0.5, 1], [0.5, 0.5, 0.5, 0.5], [1, 0.5, 0.5]], // primi due: quarti
+		[[2], [1, 1], [0.5, 1, 0.5], [0.5, 0.5, 1], [0.5, 0.5, 0.5, 0.5], [1, 0.5, 0.5]], // primi due: ottavi		
+		[[2], [1, 1], [0.5, 1, 0.5], [0.5, 0.5, 1], [0.5, 0.5, 0.5, 0.5], [1, 0.5, 0.5]], // puntati 1.5-0.5 
+		[[2], [1, 1], [0.5, 1, 0.5], [0.5, 0.5, 1], [0.5, 0.5, 0.5, 0.5], [1, 0.5, 0.5]], // sincope
 
-		[[2,2],[1,1,2]], // finale a
-		[[1,0.5,0.5,2],[0.5,1,0.5,2],[0.5,0.5,0.5,0.5,2],[1,1,2]] // finale b
+		[[2], [1, 1], [0.5, 1, 0.5], [0.5, 0.5, 1], [0.5, 0.5, 0.5, 0.5], [1, 0.5, 0.5]], // finale a
+		[[2], [1, 1], [0.5, 1, 0.5], [0.5, 0.5, 1], [0.5, 0.5, 0.5, 0.5], [1, 0.5, 0.5]] // finale b
 		];
 
 dissonanceRhythm = [
-	[[2, 0.3, 0.7, 1], [1, 1.1, 1.9, 0.5, 0.5], [0.1,1.1,2.2,0.6], [0.2, 0.8, 0.8, 1, 0.2, 0.7, 0.3], [1,0.2,2,0.8], [1, 1, 0.5, 0.4, 1.1], [1.5, 0.7, 0.3, 0.5, 0.3, 0.7]],
-	[[0.8, 0.2, 0.3, 0.7, 0.6, 1.4], [1, 0.8, 3, 0.2], [0.5, 1, 0.3, 1.7, 0.5], [0.5, 1.4, 0.6, 0.5, 0.7, 0.3], [0.6, 1.4, 0.8, 1.2], [0.5, 0.8, 0.7, 1.2, 0.5, 0.3]],
-	[[0.3, 0.4, 1.2, 0.6, 0.8, 0.7], [0.7, 1.3, 2], [2.8, 1.2], [0.8, 0.3, 2, 0.7, 0.2], [2,1,1], [0.3, 1.8, 0.3, 0.2, 0.7, 0.7], [0.4, 2.1, 0.5, 1], [1.2,1,0.2,1.1,0.5], [0.2, 0.3, 0.8, 0.5, 0.7, 0.5, 0.2, 0.8]]
+	[[0.3, 0.7, 1], [1.1, 0.9], [0.1,1.1,0.2,0.6], [0.8, 1, 0.2], [1,0.2,0.8], [0.5, 0.4, 1.1], [0.7, 0.3, 0.3, 0.7]],
+	[[0.8, 0.2, 0.6, 0.4], [1, 0.8, 1, 0.2], [0.5, 0.3, 0.7, 0.5], [0.4, 0.6, 0.7, 0.3], [0.6, 0.4, 1], [0.5, 0.7, 0.5, 0.3]],
+	[[0.8, 0.2, 0.6, 0.4], [1, 0.8, 1, 0.2], [0.5, 0.3, 0.7, 0.5], [0.4, 0.6, 0.7, 0.3], [0.6, 0.4, 1], [0.5, 0.7, 0.5, 0.3]],
 	];
 
 
@@ -318,7 +318,7 @@ accompanimentTask = Task({
 
 
 //////////////////////// REAL TIME SELECTION
-		~tempo = 150*bpm;
+		~tempo = 100*bpm;
 		if(proximity>proxHigh,{
 			mode = "Maj";
 			melodyDirection = true; // false -> basso
@@ -467,14 +467,14 @@ accompanimentTask = Task({
 		// 60 is the central C, we just take the degree of the chosen pattern in the mapped mode
 		case{leftHand==0}{
 				m.noteOn(0, 47+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc); m.noteOn(16, (47+relativeKeyN+degree[chordNotes[1]]), 100*volRangeAcc);  m.noteOn(16, (47+relativeKeyN+degree[chordNotes[2]]), 100*volRangeAcc);
-				(4*(60/~tempo)).wait;
+				(2*(60/~tempo)).wait;
 				m.noteOff(0, 47+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc); m.noteOff(16, (47+relativeKeyN+degree[chordNotes[1]]), 100*volRangeAcc); m.noteOff(16, (47+relativeKeyN+degree[chordNotes[2]]), 100*volRangeAcc);
 
 			}
 
 			{leftHand==1}{
 				m.noteOn(0, 35+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc);
-				(3*(60/~tempo)).wait;
+				(1*(60/~tempo)).wait;
 
 				2.do{ |i|
 					m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
@@ -487,13 +487,13 @@ accompanimentTask = Task({
 
 			{leftHand==2}{
 				m.noteOn(0, 35+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc);
-				(2*(60/~tempo)).wait;
-				2.do{ |i|
+				(1*(60/~tempo)).wait;
+				1.do{ |i|
 					m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 					(4*(60/(8*~tempo))).wait;
 					m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 				};
-				2.do{ |i|
+				1.do{ |i|
 					m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 					(4*(60/(8*~tempo))).wait;
 					m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
@@ -503,30 +503,30 @@ accompanimentTask = Task({
 
 			{leftHand==3}{
 				m.noteOn(0, 35+relativeKeyN+degree[chordNotes[0]], 120*volRangeAcc);
-				2.do{ |i|
+				1.do{ |i|
 					m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 					(4*(60/(8*~tempo))).wait;
 					m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 				};
-				2.do{ |i|
+				1.do{ |i|
 					m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 					(4*(60/(8*~tempo))).wait;
 					m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 				};
 				if ((rrand(0,1) > 0).and(0 == 0),{
-					2.do{ |i|
+					1.do{ |i|
 						m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]+1], 80*volRangeAcc);
 						(4*(60/(8*~tempo))).wait;
 						m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]+1], 80*volRangeAcc);
 					};
 				},{
-					2.do{ |i|
+					1.do{ |i|
 						m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 						(4*(60/(8*~tempo))).wait;
 						m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 					};
 				});
-				2.do{ |i|
+				1.do{ |i|
 					m.noteOn(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
 					(4*(60/(8*~tempo))).wait;
 					m.noteOff(0, 47+relativeKeyN+degree[chordNotes[i]], 80*volRangeAcc);
