@@ -61,7 +61,7 @@ o1 = OSCresponderNode(nil, "/distance", {
 o2 = OSCresponderNode(nil, "/speed", {
 	|t, r, mesg|
 	var tmp = mesg[1];
-	volume = 0.5+(tmp*0.5);  // il volume varia tra 0.3 e 1
+	volume = 0.2+(tmp*0.8);  // il volume varia tra 0.3 e 1
 	bpm = (proximity*0.6)+(tmp*0.2)+0.4;   
 	"  V: ".post;
 	volume.postln;
